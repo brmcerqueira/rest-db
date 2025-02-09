@@ -1,28 +1,46 @@
-use heed::{Database, EnvOpenOptions};
-use heed::types::*;
+mod repository;
+use actix_web::{get, put, web, App, HttpResponse, HttpServer, Responder};
+use repository::Repository;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let env = unsafe { EnvOpenOptions::new().open("db")? };
+struct AppState {
+    repository: Repository
+}
 
-    // We open the default unnamed database
-    let mut wtxn = env.write_txn()?;
-    let db: Database<Str, Str> = env.create_database(&mut wtxn, None)?;
+#[derive(Deserialize, Serialize)]
+struct CollectionCreate {
+    id: u64
+}
 
-    // We open a write transaction
-    db.put(&mut wtxn, "seven", "seven2")?;
-    db.put(&mut wtxn, "zero", "zero2")?;
-    db.put(&mut wtxn, "five", "five2")?;
-    db.put(&mut wtxn, "three", "three2")?;
+#[get("/collection/{name}/{id}")]
+async fn collection_get(path: web::Path<(String, u64)>, data: web::Data<AppState>) -> impl Responder {
+    let (name, id) = path.into_inner();
+    let body = data.repository.get(name, id);
+    return HttpResponse::Ok().body(body);
+}
 
-    wtxn.commit()?;
+#[put("/collection/{name}")]
+async fn collection_create(json: web::Json<Value>, path: web::Path<String>, data: web::Data<AppState>) -> impl Responder {
+    let id = data.repository.create(path.into_inner(), json.into_inner());
+    return HttpResponse::Ok().json(CollectionCreate {
+        id
+    });
+}
 
-    wtxn = env.write_txn()?;
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let app_state = web::Data::new(AppState {
+        repository: Repository::new(),
+    });
 
-    let mut iter = db.iter_mut(&mut wtxn)?;
-
-    while let Some(item) = iter.next() {
-        println!("{}", item.unwrap().1);
-    }
-
-    Ok(())
+    HttpServer::new(move || {
+        App::new()
+            .app_data(app_state.clone())
+            .service(collection_get)
+            .service(collection_create)
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }
