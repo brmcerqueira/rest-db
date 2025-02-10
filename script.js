@@ -1,3 +1,3 @@
-function name(a) {
-    filter("teste!" + a);
+function name(args) {
+    filter("teste!" + args.id);
 }

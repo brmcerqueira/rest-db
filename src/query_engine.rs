@@ -1,18 +1,23 @@
-use std::{fs, sync::mpsc::{self, Sender}, thread};
+use std::{collections::HashMap, fs, sync::mpsc::{self, Sender}, thread};
 
 use v8::{
     new_default_platform, Context, ContextOptions, ContextScope, Function, FunctionCallbackArguments, FunctionTemplate, HandleScope, Isolate, Local, ObjectTemplate, ReturnValue, Script, V8::{initialize, initialize_platform}
 };
 
+pub struct QueryEngineCall {
+    pub name: String,
+    pub args: HashMap<String, String>
+}
+
 pub struct QueryEngine {
-    pub call: Sender<String>
+    pub call: Sender<QueryEngineCall>
 }
 
 impl QueryEngine {
     pub fn new(path: String) -> Self {
-        let (call, rx) = mpsc::channel::<String>();
+        let (call, rx) = mpsc::channel::<QueryEngineCall>();
         
-        thread::spawn(|| {
+        thread::spawn(move || {
             let platform = new_default_platform(0, false).make_shared();
 
             initialize_platform(platform);
@@ -38,8 +43,8 @@ impl QueryEngine {
     
             let mut context_scope = ContextScope::new(&mut isolate_scope, context);
     
-            let code = fs::read_to_string(path)
-                .expect("failed to read script path");
+            let code = fs::read_to_string(&path)
+                .expect( &*format!("could not find script {}", path));
     
             let code = v8::String::new(&mut context_scope, &code).unwrap();
     
@@ -49,25 +54,53 @@ impl QueryEngine {
     
             let global = context.global(&mut context_scope);
     
-            for name in rx {
-                let function_name_string = v8::String::new(&mut context_scope, &name)
+            for item in rx {
+                let function_name_string = v8::String::new(&mut context_scope, &item.name)
                     .expect("failed to convert Rust string to javascript string");
         
                 let function = global
                     .get(&mut context_scope, function_name_string.into())
-                    .expect(&*format!("could not find function {}", name));
+                    .expect(&*format!("could not find function {}", &item.name));
         
-                let function: Local<Function> = Local::cast(function);
-              
-                let recv = v8::Integer::new(&mut context_scope, 2).into();
+                let function: Local<Function> = function.try_into().unwrap();
+
+                let args = v8::Object::new(&mut context_scope);
+
+                for (key, value) in item.args.iter() {
+                    let local_key = v8::String::new(&mut context_scope, key).unwrap();
+                    let local_value = QueryEngine::parse(&mut context_scope, value);
+                    args.set(&mut context_scope, local_key.into(), local_value);
+                }
+
+                let recv = v8::undefined(&mut context_scope).into();
         
-                function.call(&mut context_scope, recv, &[]);
+                function.call(&mut context_scope, recv, &[args.into()]);
             }  
         });
 
         return QueryEngine {
             call
         };
+    }
+
+    fn parse<'s>(scope: &mut HandleScope<'s, ()>, input: &String) -> v8::Local<'s, v8::Value> {
+        if let Ok(val) = input.parse::<f64>() {
+            return v8::Number::new(scope, val).into();
+        }
+ 
+        if let Ok(val) = input.parse::<i32>() {
+            return v8::Integer::new(scope, val).into();
+        }
+        
+        if let "true" = input.to_lowercase().as_str() {
+            return v8::Boolean::new(scope, true).into();
+        }
+        
+        if let "false" = input.to_lowercase().as_str() {
+            return v8::Boolean::new(scope, false).into();
+        }
+ 
+        return v8::String::new(scope, input).unwrap().into();
     }
 
     fn filter(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _retval: ReturnValue) {

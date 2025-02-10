@@ -1,13 +1,13 @@
 mod query_engine;
 mod repository;
-use std::{sync::mpsc::{self, channel, Sender}, thread};
 
-use actix_web::{get, put, rt::task, web, App, HttpResponse, HttpServer, Responder};
-use query_engine::QueryEngine;
+use std::collections::HashMap;
+
+use actix_web::{get, put, web, App, HttpResponse, HttpServer, Responder};
+use query_engine::{QueryEngine, QueryEngineCall};
 use repository::Repository;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use v8::{new_default_platform, HandleScope, Isolate};
 
 struct AppState {
     repository: Repository,
@@ -42,9 +42,13 @@ async fn collection_create(
 #[get("/query/{name}")]
 async fn query(
     path: web::Path<String>,
+    query: web::Query<HashMap<String, String>>,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    data.query_engine.call.send(path.into_inner()).unwrap();
+    data.query_engine.call.send(QueryEngineCall {
+        name: path.into_inner(),
+        args: query.0
+    }).unwrap();
     return HttpResponse::Ok();
 }
 
