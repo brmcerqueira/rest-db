@@ -1,8 +1,8 @@
 use std::fs;
 
 use v8::{
-    new_default_platform, Context, ContextScope, FunctionCallbackArguments, FunctionTemplate,
-    HandleScope, Isolate, Local, Object, ObjectTemplate, ReturnValue, Script,
+    Context, ContextScope, FunctionCallbackArguments, FunctionTemplate,
+    HandleScope, Local, ObjectTemplate, ReturnValue, Script
 };
 
 pub struct QueryEngine<'s, 'i> {
