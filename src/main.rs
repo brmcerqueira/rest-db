@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 struct AppState {
-    repository: Repository,
-    query_engine: QueryEngine
+    repository: Repository
 }
 
 #[derive(Deserialize, Serialize)]
@@ -33,9 +32,10 @@ async fn collection_create(json: web::Json<Value>, path: web::Path<String>, data
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let query_engine = &mut QueryEngine::new();
+
     let app_state = web::Data::new(AppState {
-        repository: Repository::new(),
-        query_engine: QueryEngine::new(),
+        repository: Repository::new(), 
     });
 
     HttpServer::new(move || {
