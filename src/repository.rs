@@ -3,7 +3,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use heed::{Database, Env, EnvOpenOptions};
 use heed::types::*;
 use serde_json::Value;
-use v8::{new_default_platform, Context, ContextScope, HandleScope, Isolate, Script};
 
 const COLLECTION_KEY: &str = "collection";
 
@@ -47,25 +46,5 @@ impl Repository {
         self.database.put(&mut wtxn, &key, &data);
         wtxn.commit();
         return id;
-    }
-
-    pub fn create_function(&self, code: String) {
-        let platform = new_default_platform(0, false).make_shared();
-        v8::V8::initialize_platform(platform);
-        v8::V8::initialize();
-        
-        let isolate = &mut Isolate::new(Default::default());
-        
-        let scope = &mut HandleScope::new(isolate);
-        let context = Context::new(scope, Default::default());
-        let scope = &mut ContextScope::new(scope, context);
-        
-        let code = v8::String::new(scope, &code).unwrap();
-        println!("javascript code: {}", code.to_rust_string_lossy(scope));
-        
-        let script = Script::compile(scope, code, None).unwrap();
-        let result = script.run(scope).unwrap();
-        let result = result.to_string(scope).unwrap();
-        println!("result: {}", result.to_rust_string_lossy(scope));
     }
 }

@@ -1,11 +1,14 @@
 mod repository;
+mod query_engine;
 use actix_web::{get, put, web, App, HttpResponse, HttpServer, Responder};
+use query_engine::QueryEngine;
 use repository::Repository;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 struct AppState {
-    repository: Repository
+    repository: Repository,
+    query_engine: QueryEngine
 }
 
 #[derive(Deserialize, Serialize)]
@@ -32,6 +35,7 @@ async fn collection_create(json: web::Json<Value>, path: web::Path<String>, data
 async fn main() -> std::io::Result<()> {
     let app_state = web::Data::new(AppState {
         repository: Repository::new(),
+        query_engine: QueryEngine::new(),
     });
 
     HttpServer::new(move || {
