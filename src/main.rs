@@ -1,5 +1,6 @@
 mod query_engine;
 mod repository;
+mod stages;
 
 use std::collections::HashMap;
 

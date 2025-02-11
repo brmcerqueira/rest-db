@@ -1,8 +1,10 @@
 use std::{collections::HashMap, fs, sync::mpsc::{self, Sender}, thread};
 
 use v8::{
-    new_default_platform, Context, ContextOptions, ContextScope, Function, FunctionCallbackArguments, FunctionTemplate, HandleScope, Isolate, Local, ObjectTemplate, ReturnValue, Script, V8::{initialize, initialize_platform}
+    new_default_platform, Context, ContextOptions, ContextScope, Function, HandleScope, Isolate, Local, ObjectTemplate, Script, V8::{initialize, initialize_platform}
 };
+
+use crate::stages::global_functions;
 
 pub struct QueryEngineCall {
     pub name: String,
@@ -28,11 +30,8 @@ impl QueryEngine {
     
             let global_template = ObjectTemplate::new(&mut isolate_scope);
     
-            global_template.set(
-                v8::String::new(&mut isolate_scope, "filter").unwrap().into(),
-                FunctionTemplate::new(&mut isolate_scope, QueryEngine::filter).into(),
-            );
-    
+            global_functions(&mut isolate_scope, global_template);
+
             let context = Context::new(
                 &mut isolate_scope,
                 ContextOptions {
@@ -101,15 +100,5 @@ impl QueryEngine {
         }
  
         return v8::String::new(scope, input).unwrap().into();
-    }
-
-    fn filter(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _retval: ReturnValue) {
-        let message = args
-            .get(0)
-            .to_string(scope)
-            .unwrap()
-            .to_rust_string_lossy(scope);
-
-        println!("Logged: {}", message);
     }
 }
