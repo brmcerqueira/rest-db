@@ -1,4 +1,5 @@
 function $test(args) {
+    $collection("user");
     $filter("teste!" + args.id + this);
 }
 
