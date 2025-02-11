@@ -1,4 +1,5 @@
 pub mod filter; 
+pub mod collection;
 
 use v8::{FunctionTemplate, HandleScope, Local, ObjectTemplate};
 
@@ -15,4 +16,7 @@ macro_rules! global {
     };
 }
 
-global!(["filter", filter::filter]);
+global!(
+    ["filter", filter::filter],
+    ["collection", collection::collection]
+);
