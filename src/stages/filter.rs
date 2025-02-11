@@ -7,5 +7,5 @@ pub fn filter(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
         .unwrap()
         .to_rust_string_lossy(scope);
 
-    println!("Logged: {} This: {}", message, args.this().to_string(scope).unwrap().to_rust_string_lossy(scope));
+    println!("Logged: {}", message);
 }

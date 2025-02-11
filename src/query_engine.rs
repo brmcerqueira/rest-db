@@ -93,7 +93,7 @@ impl QueryEngine {
                     args.set(&mut context_scope, local_key.into(), local_value);
                 }
 
-                let recv = v8::String::new(&mut context_scope, "test_this").unwrap().into();
+                let recv = v8::Array::new(&mut context_scope, 0).into();
 
                 function.call(&mut context_scope, recv, &[args.into()]);
             }
