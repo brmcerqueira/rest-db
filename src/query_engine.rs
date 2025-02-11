@@ -1,10 +1,12 @@
-use std::{collections::HashMap, fs, sync::mpsc::{self, Sender}, thread};
+use std::{collections::HashMap, fs, sync::{mpsc::{self, Sender}, LazyLock}, thread};
 
 use v8::{
     new_default_platform, Context, ContextOptions, ContextScope, Function, HandleScope, Isolate, Local, ObjectTemplate, Script, V8::{initialize, initialize_platform}
 };
 
 use crate::stages::global_functions;
+
+pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| { QueryEngine::new() });
 
 pub struct QueryEngineCall {
     pub name: String,
@@ -16,7 +18,7 @@ pub struct QueryEngine {
 }
 
 impl QueryEngine {
-    pub fn new(path: String) -> Self {
+    fn new() -> Self {
         let (call, rx) = mpsc::channel::<QueryEngineCall>();
         
         thread::spawn(move || {
@@ -44,6 +46,8 @@ impl QueryEngine {
     
             let mut context_scope = ContextScope::new(&mut isolate_scope, context);
     
+            let path = "./script.js";
+
             let code = fs::read_to_string(&path)
                 .expect( &*format!("could not find script {}", path));
     

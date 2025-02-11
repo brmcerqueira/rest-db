@@ -5,14 +5,10 @@ mod stages;
 use std::collections::HashMap;
 
 use actix_web::{get, put, web, App, HttpResponse, HttpServer, Responder};
-use query_engine::{QueryEngine, QueryEngineCall};
+use query_engine::{QueryEngineCall, QUERY_ENGINE};
 use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-struct AppState {
-    query_engine: QueryEngine
-}
 
 #[derive(Deserialize, Serialize)]
 struct CollectionCreate {
@@ -40,10 +36,9 @@ async fn collection_create(
 #[get("/query/{name}")]
 async fn query(
     path: web::Path<String>,
-    query: web::Query<HashMap<String, String>>,
-    data: web::Data<AppState>,
+    query: web::Query<HashMap<String, String>>
 ) -> impl Responder {
-    data.query_engine.call.send(QueryEngineCall {
+    QUERY_ENGINE.call.send(QueryEngineCall {
         name: path.into_inner(),
         args: query.0
     }).unwrap();
@@ -52,13 +47,8 @@ async fn query(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let app_state = web::Data::new(AppState {
-        query_engine: QueryEngine::new("./script.js".to_string())
-    });
-
     HttpServer::new(move || {
         App::new()
-            .app_data(app_state.clone())
             .service(collection_get)
             .service(collection_create)
             .service(query)
