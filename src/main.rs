@@ -6,12 +6,11 @@ use std::collections::HashMap;
 
 use actix_web::{get, put, web, App, HttpResponse, HttpServer, Responder};
 use query_engine::{QueryEngine, QueryEngineCall};
-use repository::Repository;
+use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 struct AppState {
-    repository: Repository,
     query_engine: QueryEngine
 }
 
@@ -22,21 +21,19 @@ struct CollectionCreate {
 
 #[get("/collection/{name}/{id}")]
 async fn collection_get(
-    path: web::Path<(String, u64)>,
-    data: web::Data<AppState>,
+    path: web::Path<(String, u64)>
 ) -> impl Responder {
     let (name, id) = path.into_inner();
-    let body = data.repository.get(name, id);
+    let body = REPOSITORY.get(name, id);
     return HttpResponse::Ok().body(body);
 }
 
 #[put("/collection/{name}")]
 async fn collection_create(
     json: web::Json<Value>,
-    path: web::Path<String>,
-    data: web::Data<AppState>,
+    path: web::Path<String>
 ) -> impl Responder {
-    let id = data.repository.create(path.into_inner(), json.into_inner());
+    let id = REPOSITORY.create(path.into_inner(), json.into_inner());
     return HttpResponse::Ok().json(CollectionCreate { id });
 }
 
@@ -56,7 +53,6 @@ async fn query(
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let app_state = web::Data::new(AppState {
-        repository: Repository::new(),
         query_engine: QueryEngine::new("./script.js".to_string())
     });
 

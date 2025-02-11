@@ -23,9 +23,11 @@ impl QueryEngine {
             let platform = new_default_platform(0, false).make_shared();
 
             initialize_platform(platform);
+            
             initialize();
         
             let isolate = &mut Isolate::new(Default::default());
+            
             let mut isolate_scope = HandleScope::new(isolate);
     
             let global_template = ObjectTemplate::new(&mut isolate_scope);

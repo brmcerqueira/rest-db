@@ -1,8 +1,12 @@
+use std::sync::LazyLock;
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use heed::{Database, Env, EnvOpenOptions};
 use heed::types::*;
 use serde_json::Value;
+
+pub static REPOSITORY: LazyLock<Repository> = LazyLock::new(|| { Repository::new() });
 
 const COLLECTION_KEY: &str = "collection";
 
@@ -12,7 +16,7 @@ pub struct Repository {
 }
 
 impl Repository {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let env = unsafe { EnvOpenOptions::new().open("db") }.unwrap();
 
         let mut wtxn = env.write_txn().unwrap();
