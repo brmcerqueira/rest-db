@@ -54,12 +54,14 @@ impl QueryEngine {
             let global = context.global(&mut context_scope);
     
             for item in rx {
-                let function_name_string = v8::String::new(&mut context_scope, &item.name)
+                let name = format!("${}", &item.name);
+
+                let function_name_string = v8::String::new(&mut context_scope, &name)
                     .expect("failed to convert Rust string to javascript string");
         
                 let function = global
                     .get(&mut context_scope, function_name_string.into())
-                    .expect(&*format!("could not find function {}", &item.name));
+                    .expect(&*format!("could not find function {}", name));
         
                 let function: Local<Function> = function.try_into().unwrap();
 

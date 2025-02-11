@@ -1,3 +1,3 @@
-function name(args) {
+function $name(args) {
     filter("teste!" + args.id);
 }
