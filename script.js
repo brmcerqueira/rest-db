@@ -1,3 +1,8 @@
-function $name(args) {
-    filter("teste!" + args.id);
+function $test(args) {
+    $filter("teste!" + args.id);
+}
+
+
+function name(args) {
+    $test(args);
 }

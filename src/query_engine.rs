@@ -1,4 +1,5 @@
 use std::{collections::HashMap, fs, sync::{mpsc::{self, Sender}, LazyLock}, thread};
+use regex::Regex;
 
 use v8::{
     new_default_platform, Context, ContextOptions, ContextScope, Function, HandleScope, Isolate, Local, ObjectTemplate, Script, V8::{initialize, initialize_platform}
@@ -48,9 +49,11 @@ impl QueryEngine {
     
             let path = "./script.js";
 
-            let code = fs::read_to_string(&path)
-                .expect( &*format!("could not find script {}", path));
+            let code = QueryEngine::sanitize(fs::read_to_string(&path)
+                .expect( &*format!("could not find script {}", path)));
     
+            println!("Code: {}", code);
+
             let code = v8::String::new(&mut context_scope, &code).unwrap();
     
             let script = Script::compile(&mut context_scope, code, None).unwrap();
@@ -60,14 +63,12 @@ impl QueryEngine {
             let global = context.global(&mut context_scope);
     
             for item in rx {
-                let name = format!("${}", &item.name);
-
-                let function_name_string = v8::String::new(&mut context_scope, &name)
+                let function_name_string = v8::String::new(&mut context_scope, &item.name)
                     .expect("failed to convert Rust string to javascript string");
         
                 let function = global
                     .get(&mut context_scope, function_name_string.into())
-                    .expect(&*format!("could not find function {}", name));
+                    .expect(&*format!("could not find function {}", &item.name));
         
                 let function: Local<Function> = function.try_into().unwrap();
 
@@ -108,5 +109,9 @@ impl QueryEngine {
         }
  
         return v8::String::new(scope, input).unwrap().into();
+    }
+
+    fn sanitize(code: String) -> String {
+        return Regex::new(r"(\$[\w]+)\((.*?)\)").unwrap().replace_all(&code, r"$1.call(this, $2)").to_string();
     }
 }
