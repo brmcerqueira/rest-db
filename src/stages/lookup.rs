@@ -19,7 +19,7 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
     REPOSITORY.get_all(collection, |item| {
         let value = String::new(scope, &item).unwrap().into();
         let value = json::parse(scope, value).unwrap().into();
-        lookup_array.set_index(scope, array.length(), value);
+        lookup_array.set_index(scope, lookup_array.length(), value);
     });
 
     let recv = undefined(scope);
@@ -28,6 +28,8 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
 
     for i in 0..length {
         let item = array.get_index(scope, i).unwrap();
+
+        println!("Item: {}", json::stringify(scope, item).unwrap().to_rust_string_lossy(scope));
 
         let this = Object::new(scope);
 
@@ -49,9 +51,11 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
             .call(scope, lookup_array.into(), &[wrapper_function.into()])
             .unwrap();
 
+        println!("Result: {}", json::stringify(scope, result).unwrap().to_rust_string_lossy(scope));
+
         let destiny = args.get(1);
 
-        if destiny.is_string() {
+        if destiny.is_string() {  
             item.to_object(scope).unwrap().set(scope, destiny, result);
         } else {
             let function: Local<Function> = destiny.try_into().unwrap();
@@ -66,5 +70,6 @@ fn wrapper(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _retval
     let key = v8::String::new(scope, "callback").unwrap();
     let callback: Local<Function> = args.this().get(scope, key.into()).unwrap().try_into().unwrap();
     let recv = undefined(scope);
+    println!("Item2: {}", json::stringify(scope, item).unwrap().to_rust_string_lossy(scope));
     callback.call(scope, recv.into(), &[item, args.get(0)]);
 }
