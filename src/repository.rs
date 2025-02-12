@@ -1,10 +1,9 @@
 use std::sync::LazyLock;
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use heed::{Database, Env, EnvOpenOptions};
 use heed::types::*;
 use serde_json::Value;
+use uuid::Uuid;
 
 pub static REPOSITORY: LazyLock<Repository> = LazyLock::new(|| { Repository::new() });
 
@@ -27,13 +26,7 @@ impl Repository {
         }
     }
 
-    fn generate_id() -> u64 {
-        let start = SystemTime::now();
-        let duration = start.duration_since(UNIX_EPOCH).expect("Time went backwards");
-        duration.as_secs()
-    }
-
-    pub fn get(&self, collection: String, id: u64) -> String {
+    pub fn get(&self, collection: String, id: String) -> String {
         let mut wtxn = self.env.write_txn().unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
         let data = self.database.get(&mut wtxn, &key).unwrap().unwrap().to_string();
@@ -55,10 +48,10 @@ impl Repository {
         return vec;
     }
 
-    pub fn create(&self, collection: String, mut value: Value) -> u64 {
+    pub fn create(&self, collection: String, mut value: Value) -> String {
         let mut wtxn = self.env.write_txn().unwrap();
-        let id = Repository::generate_id();
-        value["$id"] = id.into();
+        let id = Uuid::new_v4().to_string();
+        value["$id"] = id.clone().into();
         let data = serde_json::to_string(&value).unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
         self.database.put(&mut wtxn, &key, &data).unwrap();

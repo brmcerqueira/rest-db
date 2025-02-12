@@ -12,16 +12,16 @@ use serde_json::Value;
 
 #[derive(Deserialize, Serialize)]
 struct CollectionCreate {
-    id: u64,
+    id: String,
 }
 
 #[get("/collection/{name}/{id}")]
 async fn collection_get(
-    path: web::Path<(String, u64)>
+    path: web::Path<(String, String)>
 ) -> impl Responder {
     let (name, id) = path.into_inner();
     let body = REPOSITORY.get(name, id);
-    return HttpResponse::Ok().body(body);
+    return HttpResponse::Ok().content_type("application/json").body(body);
 }
 
 #[put("/collection/{name}")]
@@ -45,8 +45,9 @@ async fn query(
         args: query.0,
         result
     }).unwrap();
-
-    return HttpResponse::Ok().body(receiver.recv().unwrap());
+    return HttpResponse::Ok()
+    .content_type("application/json")
+    .body(receiver.recv().unwrap());
 }
 
 #[actix_web::main]
