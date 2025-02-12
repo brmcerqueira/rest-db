@@ -64,12 +64,12 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
     }
 }
 
-fn wrapper(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _retval: ReturnValue) {
+fn wrapper(scope: &mut HandleScope, args: FunctionCallbackArguments, mut retval: ReturnValue) {
     let key = v8::String::new(scope, "item").unwrap();
     let item = args.this().get(scope, key.into()).unwrap();
     let key = v8::String::new(scope, "callback").unwrap();
     let callback: Local<Function> = args.this().get(scope, key.into()).unwrap().try_into().unwrap();
     let recv = undefined(scope);
     println!("Item2: {}", json::stringify(scope, item).unwrap().to_rust_string_lossy(scope));
-    callback.call(scope, recv.into(), &[item, args.get(0)]);
+    retval.set(callback.call(scope, recv.into(), &[item, args.get(0)]).unwrap());
 }
