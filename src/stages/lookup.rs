@@ -1,6 +1,6 @@
 use v8::{
-    json, undefined, Array, Function, FunctionCallbackArguments, HandleScope,
-    Local, ReturnValue, String,
+    json, undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, Object,
+    ReturnValue, String,
 };
 
 use crate::{repository::REPOSITORY, utils::get_function};
@@ -29,19 +29,21 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
     for i in 0..length {
         let item = array.get_index(scope, i).unwrap();
 
-        let function: Local<Function> = args.get(2).try_into().unwrap();
+        let this = Object::new(scope);
 
-        let wrapper_function = Function::new(
-            scope,
-            |scope1: &mut HandleScope,
-             args1: FunctionCallbackArguments,
-             mut _retval1: ReturnValue| {
-                let recv = undefined(scope1);
-                _retval1.set(item);
-                //function.call(scope1, recv.into(), &[args1.get(0)]);
-            },
-        )
-        .unwrap();
+        let key = v8::String::new(scope, "item").unwrap();
+        this.set(scope, key.into(), item);
+
+        let key = v8::String::new(scope, "callback").unwrap();
+        this.set(scope, key.into(), args.get(2));
+
+        let wrapper_function = Function::new(scope, wrapper).unwrap();
+
+        let bind = get_function(scope, wrapper_function.into(), "bind");
+
+        let wrapper_function = bind
+            .call(scope, wrapper_function.into(), &[this.into()])
+            .unwrap();
 
         let result = get_function(scope, lookup_array.into(), "filter")
             .call(scope, lookup_array.into(), &[wrapper_function.into()])
@@ -56,4 +58,13 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
             function.call(scope, recv.into(), &[item, result]).unwrap();
         }
     }
+}
+
+fn wrapper(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _retval: ReturnValue) {
+    let key = v8::String::new(scope, "item").unwrap();
+    let item = args.this().get(scope, key.into()).unwrap();
+    let key = v8::String::new(scope, "callback").unwrap();
+    let callback: Local<Function> = args.this().get(scope, key.into()).unwrap().try_into().unwrap();
+    let recv = undefined(scope);
+    callback.call(scope, recv.into(), &[item, args.get(0)]);
 }
