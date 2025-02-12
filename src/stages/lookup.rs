@@ -1,5 +1,5 @@
 use v8::{
-    json, undefined, Array, Function, FunctionCallbackArguments, FunctionTemplate, HandleScope,
+    json, undefined, Array, Function, FunctionCallbackArguments, HandleScope,
     Local, ReturnValue, String,
 };
 
@@ -31,18 +31,15 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
 
         let function: Local<Function> = args.get(2).try_into().unwrap();
 
-        let wrapper_function = FunctionTemplate::new(
+        let wrapper_function = v8::Function::new(
             scope,
-            move |scope1: &mut HandleScope,
-                  args1: FunctionCallbackArguments,
-                  mut _retval1: ReturnValue| {
+            |scope1: &mut HandleScope,
+             args1: FunctionCallbackArguments,
+             mut _retval1: ReturnValue| {
                 let recv = undefined(scope1);
-                function
-                    .call(scope1, recv.into(), &[item, args1.get(0)])
-                    .unwrap();
+                function.call(scope1, recv.into(), &[item, args1.get(0)]);
             },
         )
-        .get_function(scope)
         .unwrap();
 
         let result = get_function(scope, lookup_array.into(), "filter")
