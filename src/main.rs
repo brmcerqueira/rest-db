@@ -5,7 +5,7 @@ mod utils;
 
 use std::{collections::HashMap, sync::mpsc};
 
-use actix_web::{delete, get, put, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
 use query_engine::{QueryEngineCall, QUERY_ENGINE};
 use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,16 @@ async fn collection_create(
 ) -> impl Responder {
     let id = REPOSITORY.create(path.into_inner(), json.into_inner());
     return HttpResponse::Ok().json(CollectionCreate { id });
+}
+
+#[post("/collection/{name}/{id}")]
+async fn collection_update(
+    json: web::Json<Value>,
+    path: web::Path<(String, String)>
+) -> impl Responder {
+    let (name, id) = path.into_inner();
+    REPOSITORY.update(name, id, json.into_inner());
+    return HttpResponse::Ok();
 }
 
 #[delete("/collection/{name}/{id}")]
@@ -66,6 +76,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(collection_get)
             .service(collection_create)
+            .service(collection_update)
             .service(collection_delete)       
             .service(query)
     })

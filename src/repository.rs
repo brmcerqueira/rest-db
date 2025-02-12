@@ -56,6 +56,17 @@ impl Repository {
         return id;
     }
 
+    pub fn update(&self, collection: String, id: String, mut value: Value) {
+        let mut wtxn = self.env.write_txn().unwrap();
+        value["$id"] = id.clone().into();
+        let data = serde_json::to_string(&value).unwrap();
+        let key = format!("{COLLECTION_KEY}:{collection}:{id}");
+        if self.database.get(&mut wtxn, &key).is_ok() {
+            self.database.put(&mut wtxn, &key, &data).unwrap(); 
+        }
+        wtxn.commit().unwrap();
+    }
+
     pub fn delete(&self, collection: String, id: String) {
         let mut wtxn = self.env.write_txn().unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
