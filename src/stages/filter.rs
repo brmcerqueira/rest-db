@@ -5,9 +5,9 @@ use crate::utils::get_function;
 pub fn filter(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _retval: ReturnValue) {
     let array: Local<Array> = args.this().try_into().unwrap();
 
-    let result = get_function(scope, array.into(), "filter")
+    let result: Local<Array> = get_function(scope, array.into(), "filter")
         .call(scope, array.into(), &[args.get(0)])
-        .unwrap();
+        .unwrap().try_into().unwrap();
 
     let length = String::new(scope, "length").unwrap();
 
@@ -15,7 +15,12 @@ pub fn filter(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
 
     array.set(scope, length.into(), clear.into());
 
-    get_function(scope, array.into(), "push")
-        .call(scope, array.into(), &[result])
-        .unwrap();
+    let push = get_function(scope, array.into(), "push");
+
+    let length = result.length();
+
+    for i in 0..length {
+        let item = result.get_index(scope, i).unwrap();
+        push.call(scope, array.into(), &[item]);
+    }
 }
