@@ -1,4 +1,4 @@
 function name(args) {
     $collection("user");
-    $filter(args.id);
+    $filter(user => user.name == args.text);
 }
