@@ -62,7 +62,7 @@ impl QueryEngine {
             let path = "./script.js";
 
             let code = QueryEngine::sanitize(
-                fs::read_to_string(&path).expect(&*format!("could not find script {}", path)),
+                fs::read_to_string(&path).expect(&*format!("could not find script {path}")),
             );
 
             println!("Code: {}", code);

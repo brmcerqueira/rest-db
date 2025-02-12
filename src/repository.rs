@@ -37,8 +37,22 @@ impl Repository {
         let mut wtxn = self.env.write_txn().unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
         let data = self.database.get(&mut wtxn, &key).unwrap().unwrap().to_string();
-        wtxn.commit();
+        wtxn.commit().unwrap();
         return data;
+    }
+
+    pub fn get_all(&self, collection: String) -> Vec<String> {
+        let mut wtxn = self.env.write_txn().unwrap();
+        let key = format!("{COLLECTION_KEY}:{collection}");
+
+        let mut vec = Vec::new(); 
+
+        for item in self.database.prefix_iter(&mut wtxn, &key).unwrap() {
+            vec.push(item.unwrap().1.to_string());
+        }
+
+        wtxn.commit().unwrap();
+        return vec;
     }
 
     pub fn create(&self, collection: String, mut value: Value) -> u64 {
@@ -47,8 +61,8 @@ impl Repository {
         value["$id"] = id.into();
         let data = serde_json::to_string(&value).unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
-        self.database.put(&mut wtxn, &key, &data);
-        wtxn.commit();
+        self.database.put(&mut wtxn, &key, &data).unwrap();
+        wtxn.commit().unwrap();
         return id;
     }
 }

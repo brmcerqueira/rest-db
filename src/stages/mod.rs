@@ -8,7 +8,7 @@ macro_rules! global {
         pub fn global_functions<'s>(scope: &mut HandleScope<'s, ()>, global: Local<'s, ObjectTemplate>) {
             $(
                 global.set(
-                    v8::String::new(scope, concat!("$", $name)).unwrap().into(),
+                    v8::String::new(scope, $name).unwrap().into(),
                     FunctionTemplate::new(scope, $cb).into(),
                 );
             )*
@@ -17,6 +17,6 @@ macro_rules! global {
 }
 
 global!(
-    ["filter", filter::filter],
-    ["collection", collection::collection]
+    ["$filter", filter::filter],
+    ["$collection", collection::collection]
 );
