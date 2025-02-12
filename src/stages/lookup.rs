@@ -51,8 +51,6 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
             .call(scope, lookup_array.into(), &[wrapper_function.into()])
             .unwrap();
 
-        println!("Result: {}", json::stringify(scope, result).unwrap().to_rust_string_lossy(scope));
-
         let destiny = args.get(1);
 
         if destiny.is_string() {  
@@ -70,6 +68,5 @@ fn wrapper(scope: &mut HandleScope, args: FunctionCallbackArguments, mut retval:
     let key = v8::String::new(scope, "callback").unwrap();
     let callback: Local<Function> = args.this().get(scope, key.into()).unwrap().try_into().unwrap();
     let recv = undefined(scope);
-    println!("Item2: {}", json::stringify(scope, item).unwrap().to_rust_string_lossy(scope));
     retval.set(callback.call(scope, recv.into(), &[item, args.get(0)]).unwrap());
 }
