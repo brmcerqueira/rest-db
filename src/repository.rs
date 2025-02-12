@@ -34,18 +34,15 @@ impl Repository {
         return data;
     }
 
-    pub fn get_all(&self, collection: String) -> Vec<String> {
+    pub fn get_all(&self, collection: String, mut each: impl FnMut(String)) {
         let mut wtxn = self.env.write_txn().unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}");
 
-        let mut vec = Vec::new(); 
-
         for item in self.database.prefix_iter(&mut wtxn, &key).unwrap() {
-            vec.push(item.unwrap().1.to_string());
+            each(item.unwrap().1.to_string())
         }
 
         wtxn.commit().unwrap();
-        return vec;
     }
 
     pub fn create(&self, collection: String, mut value: Value) -> String {
