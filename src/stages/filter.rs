@@ -1,13 +1,11 @@
-use v8::{Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
+use v8::{Array, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
+
+use crate::utils;
 
 pub fn filter(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _retval: ReturnValue) {
     let array: Local<Array> = args.this().try_into().unwrap();
 
-    let name = v8::String::new(scope, "filter").unwrap();
-
-    let function = array.get(scope, name.into()).unwrap();
-
-    let function: Local<Function> = function.try_into().unwrap();
+    let function = utils::get_function(scope, array.into(), "filter");
 
     let result = function.call(scope, array.into(), &[args.get(0)]).unwrap();
 
@@ -17,11 +15,7 @@ pub fn filter(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
 
     array.set(scope, length.into(), clear.into());
 
-    let name = v8::String::new(scope, "push").unwrap();
-
-    let function = array.get(scope, name.into()).unwrap();
-
-    let function: Local<Function> = function.try_into().unwrap();
+    let function = utils::get_function(scope, array.into(), "push");
 
     function.call(scope, array.into(), &[result]).unwrap();
 }

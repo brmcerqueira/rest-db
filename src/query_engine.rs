@@ -10,21 +10,23 @@ use std::{
 };
 
 use v8::{
-    new_default_platform, Context, ContextOptions, ContextScope, Function, HandleScope, Isolate,
-    Local, ObjectTemplate, Script,
+    new_default_platform, Context, ContextOptions, ContextScope, HandleScope, Isolate,
+    ObjectTemplate, Script,
     V8::{initialize, initialize_platform},
 };
 
-use crate::stages::global_functions;
+use crate::{stages::global_functions, utils};
 
-static FUNCTION_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(function)?\s*\$[\w]+\s*\(.*?\)").unwrap());
-static FUNCTION_CALL_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\s*\$[\w]+)\s*\((.*?)\)").unwrap());
+static FUNCTION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(function)?\s*\$[\w]+\s*\(.*?\)").unwrap());
+static FUNCTION_CALL_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(\s*\$[\w]+)\s*\((.*?)\)").unwrap());
 pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| QueryEngine::new());
 
 pub struct QueryEngineCall {
     pub name: String,
     pub args: HashMap<String, String>,
-    pub result: Sender<String>
+    pub result: Sender<String>,
 }
 
 pub struct QueryEngine {
@@ -75,14 +77,7 @@ impl QueryEngine {
             let global = context.global(&mut context_scope);
 
             for item in receiver {
-                let function_name_string = v8::String::new(&mut context_scope, &item.name)
-                    .expect("failed to convert Rust string to javascript string");
-
-                let function = global
-                    .get(&mut context_scope, function_name_string.into())
-                    .expect(&*format!("could not find function {}", &item.name));
-
-                let function: Local<Function> = function.try_into().unwrap();
+                let function = utils::get_function(&mut context_scope, global.into(), &item.name);
 
                 let args = v8::Object::new(&mut context_scope);
 
@@ -96,8 +91,13 @@ impl QueryEngine {
 
                 function.call(&mut context_scope, recv, &[args.into()]);
 
-                item.result.send(v8::json::stringify(&mut context_scope, recv)
-                .unwrap().to_rust_string_lossy(&mut context_scope)).unwrap();
+                item.result
+                    .send(
+                        v8::json::stringify(&mut context_scope, recv)
+                            .unwrap()
+                            .to_rust_string_lossy(&mut context_scope),
+                    )
+                    .unwrap();
             }
         });
 
@@ -125,13 +125,16 @@ impl QueryEngine {
     }
 
     fn sanitize(code: String) -> String {
-        return FUNCTION_REGEX.replace_all(&code, |caps: &regex::Captures| {
-            if caps[0].starts_with("function") {
-                return caps[0].to_string();
-            }
-    
-            return FUNCTION_CALL_REGEX.replace(&caps[0], r"$1.call(this, $2)")
+        return FUNCTION_REGEX
+            .replace_all(&code, |caps: &regex::Captures| {
+                if caps[0].starts_with("function") {
+                    return caps[0].to_string();
+                }
+
+                return FUNCTION_CALL_REGEX
+                    .replace(&caps[0], r"$1.call(this, $2)")
+                    .to_string();
+            })
             .to_string();
-        }).to_string();
     }
 }
