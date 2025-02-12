@@ -1,4 +1,4 @@
-use regex::Regex;
+use regex::{Captures, Regex};
 use std::{
     collections::HashMap,
     fs,
@@ -10,12 +10,12 @@ use std::{
 };
 
 use v8::{
-    new_default_platform, Context, ContextOptions, ContextScope, HandleScope, Isolate,
-    ObjectTemplate, Script,
+    json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
+    Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
     V8::{initialize, initialize_platform},
 };
 
-use crate::{stages::global_functions, utils};
+use crate::{stages::global_functions, utils::get_function};
 
 static FUNCTION_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(function)?\s*\$[\w]+\s*\(.*?\)").unwrap());
@@ -64,22 +64,16 @@ impl QueryEngine {
 
             let path = "./script.js";
 
-            let code = QueryEngine::sanitize(
+            let code = v8::String::new(&mut context_scope, &QueryEngine::sanitize(
                 fs::read_to_string(&path).expect(&*format!("could not find script {path}")),
-            );
+            )).unwrap();
 
-            let code = v8::String::new(&mut context_scope, &code).unwrap();
-
-            let script = Script::compile(&mut context_scope, code, None).unwrap();
-
-            script.run(&mut context_scope);
+            Script::compile(&mut context_scope, code, None).unwrap().run(&mut context_scope);
 
             let global = context.global(&mut context_scope);
 
             for item in receiver {
-                let function = utils::get_function(&mut context_scope, global.into(), &item.name);
-
-                let args = v8::Object::new(&mut context_scope);
+                let args = Object::new(&mut context_scope);
 
                 for (key, value) in item.args.iter() {
                     let local_key = v8::String::new(&mut context_scope, key).unwrap();
@@ -87,13 +81,17 @@ impl QueryEngine {
                     args.set(&mut context_scope, local_key.into(), local_value);
                 }
 
-                let recv = v8::Array::new(&mut context_scope, 0).into();
+                let array = Array::new(&mut context_scope, 0).into();
 
-                function.call(&mut context_scope, recv, &[args.into()]);
+                get_function(&mut context_scope, global.into(), &item.name).call(
+                    &mut context_scope,
+                    array,
+                    &[args.into()],
+                );
 
                 item.result
                     .send(
-                        v8::json::stringify(&mut context_scope, recv)
+                        json::stringify(&mut context_scope, array)
                             .unwrap()
                             .to_rust_string_lossy(&mut context_scope),
                     )
@@ -104,21 +102,21 @@ impl QueryEngine {
         return QueryEngine { call };
     }
 
-    fn parse<'s>(scope: &mut HandleScope<'s, ()>, input: &String) -> v8::Local<'s, v8::Value> {
+    fn parse<'s>(scope: &mut HandleScope<'s, ()>, input: &String) -> Local<'s, Value> {
         if let Ok(val) = input.parse::<f64>() {
-            return v8::Number::new(scope, val).into();
+            return Number::new(scope, val).into();
         }
 
         if let Ok(val) = input.parse::<i32>() {
-            return v8::Integer::new(scope, val).into();
+            return Integer::new(scope, val).into();
         }
 
         if let "true" = input.to_lowercase().as_str() {
-            return v8::Boolean::new(scope, true).into();
+            return Boolean::new(scope, true).into();
         }
 
         if let "false" = input.to_lowercase().as_str() {
-            return v8::Boolean::new(scope, false).into();
+            return Boolean::new(scope, false).into();
         }
 
         return v8::String::new(scope, input).unwrap().into();
@@ -126,7 +124,7 @@ impl QueryEngine {
 
     fn sanitize(code: String) -> String {
         return FUNCTION_REGEX
-            .replace_all(&code, |caps: &regex::Captures| {
+            .replace_all(&code, |caps: &Captures| {
                 if caps[0].starts_with("function") {
                     return caps[0].to_string();
                 }

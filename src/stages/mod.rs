@@ -1,5 +1,6 @@
 pub mod filter; 
 pub mod collection;
+pub mod lookup;
 
 use v8::{FunctionTemplate, HandleScope, Local, ObjectTemplate};
 
@@ -18,5 +19,6 @@ macro_rules! global {
 
 global!(
     ["$filter", filter::filter],
-    ["$collection", collection::collection]
+    ["$collection", collection::collection],
+    ["$lookup", lookup::lookup]
 );
