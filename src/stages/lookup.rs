@@ -31,13 +31,14 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
 
         let function: Local<Function> = args.get(2).try_into().unwrap();
 
-        let wrapper_function = v8::Function::new(
+        let wrapper_function = Function::new(
             scope,
             |scope1: &mut HandleScope,
              args1: FunctionCallbackArguments,
              mut _retval1: ReturnValue| {
                 let recv = undefined(scope1);
-                function.call(scope1, recv.into(), &[item, args1.get(0)]);
+                _retval1.set(item);
+                //function.call(scope1, recv.into(), &[args1.get(0)]);
             },
         )
         .unwrap();
