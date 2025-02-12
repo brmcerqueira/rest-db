@@ -29,8 +29,6 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _ret
     for i in 0..length {
         let item = array.get_index(scope, i).unwrap();
 
-        println!("Item: {}", json::stringify(scope, item).unwrap().to_rust_string_lossy(scope));
-
         let this = Object::new(scope);
 
         let key = v8::String::new(scope, "item").unwrap();
