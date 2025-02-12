@@ -24,6 +24,7 @@ pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| QueryEngine::n
 pub struct QueryEngineCall {
     pub name: String,
     pub args: HashMap<String, String>,
+    pub result: Sender<String>
 }
 
 pub struct QueryEngine {
@@ -65,8 +66,6 @@ impl QueryEngine {
                 fs::read_to_string(&path).expect(&*format!("could not find script {path}")),
             );
 
-            println!("Code: {}", code);
-
             let code = v8::String::new(&mut context_scope, &code).unwrap();
 
             let script = Script::compile(&mut context_scope, code, None).unwrap();
@@ -96,6 +95,9 @@ impl QueryEngine {
                 let recv = v8::Array::new(&mut context_scope, 0).into();
 
                 function.call(&mut context_scope, recv, &[args.into()]);
+
+                item.result.send(v8::json::stringify(&mut context_scope, recv)
+                .unwrap().to_rust_string_lossy(&mut context_scope)).unwrap();
             }
         });
 

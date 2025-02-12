@@ -38,13 +38,15 @@ async fn query(
     path: web::Path<String>,
     query: web::Query<HashMap<String, String>>
 ) -> impl Responder {
-    let (sender, receiver) = mpsc::channel::<QueryEngineCall>();
+    let (result, receiver) = mpsc::channel::<String>();
 
     QUERY_ENGINE.call.send(QueryEngineCall {
         name: path.into_inner(),
-        args: query.0
+        args: query.0,
+        result
     }).unwrap();
-    return HttpResponse::Ok();
+
+    return HttpResponse::Ok().body(receiver.recv().unwrap());
 }
 
 #[actix_web::main]
