@@ -55,4 +55,11 @@ impl Repository {
         wtxn.commit().unwrap();
         return id;
     }
+
+    pub fn delete(&self, collection: String, id: String) {
+        let mut wtxn = self.env.write_txn().unwrap();
+        let key = format!("{COLLECTION_KEY}:{collection}:{id}");
+        self.database.delete(&mut wtxn, &key).unwrap();
+        wtxn.commit().unwrap();
+    }
 }

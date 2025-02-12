@@ -4,7 +4,7 @@ mod stages;
 
 use std::{collections::HashMap, sync::mpsc};
 
-use actix_web::{get, put, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{delete, get, put, web, App, HttpResponse, HttpServer, Responder};
 use query_engine::{QueryEngineCall, QUERY_ENGINE};
 use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
@@ -33,6 +33,15 @@ async fn collection_create(
     return HttpResponse::Ok().json(CollectionCreate { id });
 }
 
+#[delete("/collection/{name}/{id}")]
+async fn collection_delete(
+    path: web::Path<(String, String)>
+) -> impl Responder {
+    let (name, id) = path.into_inner();
+    REPOSITORY.delete(name, id);
+    return HttpResponse::Ok();
+}
+
 #[get("/query/{name}")]
 async fn query(
     path: web::Path<String>,
@@ -56,6 +65,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(collection_get)
             .service(collection_create)
+            .service(collection_delete)       
             .service(query)
     })
     .bind(("127.0.0.1", 8080))?
