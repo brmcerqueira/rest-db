@@ -32,7 +32,7 @@ pub struct QueryEngine {
 
 impl QueryEngine {
     fn new() -> Self {
-        let (call, rx) = mpsc::channel::<QueryEngineCall>();
+        let (call, receiver) = mpsc::channel::<QueryEngineCall>();
 
         thread::spawn(move || {
             let platform = new_default_platform(0, false).make_shared();
@@ -75,7 +75,7 @@ impl QueryEngine {
 
             let global = context.global(&mut context_scope);
 
-            for item in rx {
+            for item in receiver {
                 let function_name_string = v8::String::new(&mut context_scope, &item.name)
                     .expect("failed to convert Rust string to javascript string");
 

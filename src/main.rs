@@ -2,7 +2,7 @@ mod query_engine;
 mod repository;
 mod stages;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::mpsc};
 
 use actix_web::{get, put, web, App, HttpResponse, HttpServer, Responder};
 use query_engine::{QueryEngineCall, QUERY_ENGINE};
@@ -38,6 +38,8 @@ async fn query(
     path: web::Path<String>,
     query: web::Query<HashMap<String, String>>
 ) -> impl Responder {
+    let (sender, receiver) = mpsc::channel::<QueryEngineCall>();
+
     QUERY_ENGINE.call.send(QueryEngineCall {
         name: path.into_inner(),
         args: query.0

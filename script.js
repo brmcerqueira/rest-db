@@ -1,8 +1,8 @@
-function $test(args) {
+function $test(args, data) {
     $collection("user");
-    $filter("teste!" + args.id + this);
+    $filter(data.name + args.id + this);
 }
 
 function name(args) {
-    $test(args);
+    $test(args, JSON.parse("{\"name\":\"test\"}"));
 }

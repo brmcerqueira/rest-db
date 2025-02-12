@@ -13,6 +13,7 @@ pub fn collection(scope: &mut HandleScope, args: FunctionCallbackArguments, mut 
 
     for item in REPOSITORY.get_all(collection) {
         let value = v8::String::new(scope, &item).unwrap().into();
+        let value = v8::json::parse(scope, value).unwrap().into();
         array.set_index(scope, array.length(), value);
     }
 }
