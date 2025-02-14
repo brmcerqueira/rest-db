@@ -1,24 +1,20 @@
 use std::{
-    collections::HashMap,
-    path::Path,
-    sync::{
+    collections::HashMap, path::Path, rc::Rc, sync::{
         mpsc::{self, Sender},
         LazyLock,
-    },
-    thread,
+    }, thread
 };
 use swc_core::{
     common::{
         comments::SingleThreadedComments,
         errors::{ColorConfig, Handler},
-        sync::Lrc,
         Globals, Mark, SourceMap, GLOBALS,
     },
     ecma::{
         codegen::{text_writer::JsWriter, Emitter},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
         transforms::typescript::strip,
-        visit::{swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, MemberProp, ThisExpr}, Fold, FoldWith},
+        visit::FoldWith,
     },
 };
 
@@ -28,7 +24,7 @@ use v8::{
     V8::{initialize, initialize_platform},
 };
 
-use crate::{stages::global_functions, utils::get_function};
+use crate::{call_function_with_context_transformer::CallFunctionWithContextTransformer, stages::global_functions, utils::get_function};
 
 pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| QueryEngine::new());
 
@@ -42,55 +38,13 @@ pub struct QueryEngine {
     pub call: Sender<QueryEngineCall>,
 }
 
-struct CallTransformer;
-
-impl Fold for CallTransformer {
-    fn fold_call_expr(&mut self, call: CallExpr) -> CallExpr {
-
-        let name = call.callee.as_expr().unwrap().clone().ident().unwrap().sym;
-
-        if name.starts_with("$") {
-            let mut args = vec![
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::This(ThisExpr {
-                        span: call.span,
-                    })),
-                },
-            ];
-
-            args.extend(call.args);
-
-            return CallExpr {
-                callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                    span: call.span,
-                    obj: Box::new(Expr::Ident(Ident {
-                        span: call.span,
-                        sym: name, 
-                        optional: false,
-                    })),
-                    prop: MemberProp::Ident(Ident {
-                        span: call.span,
-                        sym: "call".into(),
-                        optional: false,
-                    }),
-                }))),
-                args: args,
-                ..call
-            };
-        }
-
-        return call;
-    }
-}
-
 impl QueryEngine {
     fn new() -> Self {
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
 
         let path = "./script.ts";
 
-        let cm: Lrc<SourceMap> = Default::default();
+        let cm: Rc<SourceMap> = Default::default();
         let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
 
         let source = cm
@@ -122,7 +76,7 @@ impl QueryEngine {
         let code = GLOBALS.set(&globals, || {
             let top_level_mark = Mark::new();
 
-            let program = program.fold_with(&mut strip(top_level_mark)).fold_with(&mut CallTransformer);
+            let program = program.fold_with(&mut strip(top_level_mark)).fold_with(&mut CallFunctionWithContextTransformer);
 
             let mut buf = vec![];
 

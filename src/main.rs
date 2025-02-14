@@ -1,3 +1,4 @@
+mod call_function_with_context_transformer;
 mod query_engine;
 mod repository;
 mod stages;
