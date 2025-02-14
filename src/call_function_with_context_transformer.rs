@@ -31,11 +31,11 @@ impl Fold for CallFunctionWithContextTransformer {
                         optional: false,
                     }),
                 }))),
-                args: args,
+                args,
                 ..call
             };
         }
 
-        return call;
+        call
     }
 }

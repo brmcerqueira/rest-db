@@ -7,5 +7,5 @@ pub fn get_function<'s, 'a>(scope: &mut HandleScope<'s>, object: Local<'a, Objec
     let function = object.get(scope, function_name.into())
     .expect(&*format!("could not find function {name}"));
 
-    return function.try_into().unwrap();
+    function.try_into().unwrap()
 }

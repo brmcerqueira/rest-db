@@ -152,7 +152,7 @@ impl QueryEngine {
             }
         });
 
-        return QueryEngine { call };
+        QueryEngine { call }
     }
 
     fn parse<'s>(scope: &mut HandleScope<'s, ()>, input: &String) -> Local<'s, Value> {
@@ -172,6 +172,6 @@ impl QueryEngine {
             return Boolean::new(scope, false).into();
         }
 
-        return v8::String::new(scope, input).unwrap().into();
+        v8::String::new(scope, input).unwrap().into()
     }
 }

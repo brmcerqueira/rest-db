@@ -31,7 +31,7 @@ impl Repository {
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
         let data = self.database.get(&mut wtxn, &key).unwrap().unwrap().to_string();
         wtxn.commit().unwrap();
-        return data;
+        data
     }
 
     pub fn get_all(&self, collection: String, mut each: impl FnMut(String)) {
@@ -53,7 +53,7 @@ impl Repository {
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
         self.database.put(&mut wtxn, &key, &data).unwrap();
         wtxn.commit().unwrap();
-        return id;
+        id
     }
 
     pub fn update(&self, collection: String, id: String, mut value: Value) {

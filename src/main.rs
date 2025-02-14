@@ -23,7 +23,7 @@ async fn collection_get(
 ) -> impl Responder {
     let (name, id) = path.into_inner();
     let body = REPOSITORY.get(name, id);
-    return HttpResponse::Ok().content_type("application/json").body(body);
+    HttpResponse::Ok().content_type("application/json").body(body)
 }
 
 #[put("/collection/{name}")]
@@ -32,7 +32,7 @@ async fn collection_create(
     path: web::Path<String>
 ) -> impl Responder {
     let id = REPOSITORY.create(path.into_inner(), json.into_inner());
-    return HttpResponse::Ok().json(CollectionCreate { id });
+    HttpResponse::Ok().json(CollectionCreate { id })
 }
 
 #[post("/collection/{name}/{id}")]
@@ -42,7 +42,7 @@ async fn collection_update(
 ) -> impl Responder {
     let (name, id) = path.into_inner();
     REPOSITORY.update(name, id, json.into_inner());
-    return HttpResponse::Ok();
+    HttpResponse::Ok()
 }
 
 #[delete("/collection/{name}/{id}")]
@@ -51,7 +51,7 @@ async fn collection_delete(
 ) -> impl Responder {
     let (name, id) = path.into_inner();
     REPOSITORY.delete(name, id);
-    return HttpResponse::Ok();
+    HttpResponse::Ok()
 }
 
 #[get("/query/{name}")]
@@ -66,9 +66,9 @@ async fn query(
         args: query.0,
         result
     }).unwrap();
-    return HttpResponse::Ok()
+    HttpResponse::Ok()
     .content_type("application/json")
-    .body(receiver.recv().unwrap());
+    .body(receiver.recv().unwrap())
 }
 
 #[actix_web::main]
