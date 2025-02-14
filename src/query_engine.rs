@@ -8,23 +8,20 @@ use std::{
     },
     thread,
 };
-use swc_core::ecma::codegen::Config;
-use swc_core::ecma::parser::{parse_file_as_program, TsSyntax};
+use swc_core::ecma::parser::parse_file_as_program;
 use swc_core::ecma::transforms::base::fixer::paren_remover;
 use swc_core::ecma::transforms::base::resolver;
-use swc_core::{
-    common::{
-        comments::SingleThreadedComments,
-        errors::{ColorConfig, Handler},
-        Globals, Mark, SourceMap, GLOBALS,
-    },
-    ecma::{
-        codegen::{text_writer::JsWriter, Emitter},
-        parser::{lexer::Lexer, Parser, StringInput, Syntax},
-        transforms::typescript::strip,
-        visit::FoldWith,
-    },
-};
+use swc_core::{common::{
+    comments::SingleThreadedComments,
+    errors::{ColorConfig, Handler},
+    Globals, Mark, SourceMap, GLOBALS,
+}, ecma::{
+    codegen::{text_writer::JsWriter, Emitter},
+    parser::{lexer::Lexer, Parser, StringInput, Syntax},
+    transforms::typescript::strip,
+    visit::FoldWith,
+}};
+use swc_core::ecma::codegen;
 use v8::{
     json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
     Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
@@ -63,14 +60,12 @@ impl QueryEngine {
 
         let comments = SingleThreadedComments::default();
 
-        let lexer = Lexer::new(
+        let mut parser = Parser::new_from(Lexer::new(
             Syntax::Typescript(Default::default()),
             Default::default(),
             StringInput::from(&*source),
             Some(&comments),
-        );
-
-        let mut parser = Parser::new_from(lexer);
+        ));
 
         for e in parser.take_errors() {
             e.into_diagnostic(&handler).emit();
@@ -82,33 +77,30 @@ impl QueryEngine {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            let program = parse_file_as_program(
+            let module = parse_file_as_program(
                 &source,
-                Syntax::Typescript(TsSyntax {
-                    tsx: true,
-                    ..Default::default()
-                }),
+                Syntax::Typescript(Default::default()),
                 Default::default(),
                 Some(&comments),
                 &mut Vec::new(),
             )
             .map_err(|err| err.into_diagnostic(&handler).emit())
-            .map(|program| program.apply(resolver(unresolved_mark, top_level_mark, true)))
-            .map(|program| program.apply(strip(unresolved_mark, top_level_mark)))
-            .map(|program| program.apply(paren_remover(None)))
-            .map(|program| program.fold_with(&mut CallFunctionWithContextTransformer))
+            .map(|module| module.apply(resolver(unresolved_mark, top_level_mark, true)))
+            .map(|module| module.apply(strip(unresolved_mark, top_level_mark)))
+            .map(|module| module.apply(paren_remover(None)))
+            .map(|module| module.fold_with(&mut CallFunctionWithContextTransformer))
             .unwrap();
 
             let mut buf = vec![];
 
             let mut emitter = Emitter {
-                cfg: Config::default(),
+                cfg: codegen::Config::default(),
                 cm: cm.clone(),
                 comments: Some(&comments),
                 wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
             };
 
-            emitter.emit_program(&program).unwrap();
+            emitter.emit_program(&module).unwrap();
 
             return String::from_utf8(buf).expect("non-utf8?");
         });
