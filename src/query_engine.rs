@@ -1,4 +1,3 @@
-use regex::{Captures, Regex};
 use std::{
     collections::HashMap,
     path::Path,
@@ -19,7 +18,7 @@ use swc_core::{
         codegen::{text_writer::JsWriter, Emitter},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
         transforms::typescript::strip,
-        visit::{swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, MemberProp}, Fold, FoldWith},
+        visit::{swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, MemberProp, ThisExpr}, Fold, FoldWith},
     },
 };
 
@@ -31,10 +30,6 @@ use v8::{
 
 use crate::{stages::global_functions, utils::get_function};
 
-static FUNCTION_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(function)?\s*\$[\w]+\s*\(.*?\)").unwrap());
-static FUNCTION_CALL_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(\s*\$[\w]+)\s*\((.*?)\)").unwrap());
 pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| QueryEngine::new());
 
 pub struct QueryEngineCall {
@@ -51,32 +46,41 @@ struct CallTransformer;
 
 impl Fold for CallTransformer {
     fn fold_call_expr(&mut self, call: CallExpr) -> CallExpr {
-        return CallExpr {
-            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                span: call.span,
-                obj: Box::new(Expr::Ident(Ident {
-                    span: call.span,
-                    sym: "this".into(),
-                    optional: false,
-                })),
-                prop: MemberProp::Ident(Ident {
-                    span: call.span,
-                    sym: "apply".into(),
-                    optional: false,
-                }),
-            }))),
-            /*args: vec![
+
+        let name = call.callee.as_expr().unwrap().clone().ident().unwrap().sym;
+
+        if name.starts_with("$") {
+            let mut args = vec![
                 ExprOrSpread {
                     spread: None,
-                    expr: call.callee,
+                    expr: Box::new(Expr::This(ThisExpr {
+                        span: call.span,
+                    })),
                 },
-                ExprOrSpread {
-                    spread: None,
-                    expr: call.args.into(),
-                },
-            ],*/
-            ..call
-        };
+            ];
+
+            args.extend(call.args);
+
+            return CallExpr {
+                callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                    span: call.span,
+                    obj: Box::new(Expr::Ident(Ident {
+                        span: call.span,
+                        sym: name, 
+                        optional: false,
+                    })),
+                    prop: MemberProp::Ident(Ident {
+                        span: call.span,
+                        sym: "call".into(),
+                        optional: false,
+                    }),
+                }))),
+                args: args,
+                ..call
+            };
+        }
+
+        return call;
     }
 }
 
@@ -131,11 +135,7 @@ impl QueryEngine {
 
             emitter.emit_program(&program).unwrap();
 
-            let code = String::from_utf8(buf).expect("non-utf8?");
-
-            println!("Code: {}", code);
-
-            return code;
+            return String::from_utf8(buf).expect("non-utf8?");
         });
 
         thread::spawn(move || {
@@ -163,7 +163,7 @@ impl QueryEngine {
 
             let mut context_scope = ContextScope::new(&mut isolate_scope, context);
 
-            let code = v8::String::new(&mut context_scope, &Self::sanitize(code)).unwrap();
+            let code = v8::String::new(&mut context_scope, &code).unwrap();
 
             Script::compile(&mut context_scope, code, None)
                 .unwrap()
@@ -219,19 +219,5 @@ impl QueryEngine {
         }
 
         return v8::String::new(scope, input).unwrap().into();
-    }
-
-    fn sanitize(code: String) -> String {
-        return FUNCTION_REGEX
-            .replace_all(&code, |caps: &Captures| {
-                if caps[0].starts_with("function") {
-                    return caps[0].to_string();
-                }
-
-                return FUNCTION_CALL_REGEX
-                    .replace(&caps[0], r"$1.call(this, $2)")
-                    .to_string();
-            })
-            .to_string();
     }
 }
