@@ -19,7 +19,7 @@ use swc_core::{
         codegen::{text_writer::JsWriter, Emitter},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
         transforms::typescript::strip,
-        visit::FoldWith,
+        visit::{swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, MemberProp}, Fold, FoldWith},
     },
 };
 
@@ -45,6 +45,39 @@ pub struct QueryEngineCall {
 
 pub struct QueryEngine {
     pub call: Sender<QueryEngineCall>,
+}
+
+struct CallTransformer;
+
+impl Fold for CallTransformer {
+    fn fold_call_expr(&mut self, call: CallExpr) -> CallExpr {
+        return CallExpr {
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                span: call.span,
+                obj: Box::new(Expr::Ident(Ident {
+                    span: call.span,
+                    sym: "this".into(),
+                    optional: false,
+                })),
+                prop: MemberProp::Ident(Ident {
+                    span: call.span,
+                    sym: "apply".into(),
+                    optional: false,
+                }),
+            }))),
+            /*args: vec![
+                ExprOrSpread {
+                    spread: None,
+                    expr: call.callee,
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: call.args.into(),
+                },
+            ],*/
+            ..call
+        };
+    }
 }
 
 impl QueryEngine {
@@ -84,8 +117,8 @@ impl QueryEngine {
 
         let code = GLOBALS.set(&globals, || {
             let top_level_mark = Mark::new();
-            let strip = &mut strip(top_level_mark);
-            let program = program.fold_with(strip);
+
+            let program = program.fold_with(&mut strip(top_level_mark)).fold_with(&mut CallTransformer);
 
             let mut buf = vec![];
 
