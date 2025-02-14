@@ -1,9 +1,17 @@
 use std::{
-    collections::HashMap, path::Path, rc::Rc, sync::{
+    collections::HashMap,
+    path::Path,
+    rc::Rc,
+    sync::{
         mpsc::{self, Sender},
         LazyLock,
-    }, thread
+    },
+    thread,
 };
+use swc_core::ecma::codegen::Config;
+use swc_core::ecma::parser::{parse_file_as_program, TsSyntax};
+use swc_core::ecma::transforms::base::fixer::paren_remover;
+use swc_core::ecma::transforms::base::resolver;
 use swc_core::{
     common::{
         comments::SingleThreadedComments,
@@ -17,14 +25,16 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-
 use v8::{
     json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
     Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
     V8::{initialize, initialize_platform},
 };
 
-use crate::{call_function_with_context_transformer::CallFunctionWithContextTransformer, stages::global_functions, utils::get_function};
+use crate::{
+    call_function_with_context_transformer::CallFunctionWithContextTransformer,
+    stages::global_functions, utils::get_function,
+};
 
 pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| QueryEngine::new());
 
@@ -66,22 +76,34 @@ impl QueryEngine {
             e.into_diagnostic(&handler).emit();
         }
 
-        let program = parser
-            .parse_program()
-            .map_err(|e| e.into_diagnostic(&handler).emit())
-            .expect("failed to parse program.");
-
         let globals = Globals::default();
 
         let code = GLOBALS.set(&globals, || {
+            let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            let program = program.fold_with(&mut strip(top_level_mark)).fold_with(&mut CallFunctionWithContextTransformer);
+            let mut program = parse_file_as_program(
+                &source,
+                Syntax::Typescript(TsSyntax {
+                    tsx: true,
+                    ..Default::default()
+                }),
+                Default::default(),
+                Some(&comments),
+                &mut Vec::new(),
+            )
+            .map_err(|err| err.into_diagnostic(&handler).emit())
+            .map(|program| program.apply(resolver(unresolved_mark, top_level_mark, true)))
+            .map(|program| program.apply(strip(unresolved_mark, top_level_mark)))
+            .map(|program| program.apply(paren_remover(None)))
+            .unwrap();
+
+            let program = program.fold_with(&mut CallFunctionWithContextTransformer);
 
             let mut buf = vec![];
 
             let mut emitter = Emitter {
-                cfg: swc_core::ecma::codegen::Config::default(),
+                cfg: Config::default(),
                 cm: cm.clone(),
                 comments: Some(&comments),
                 wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),

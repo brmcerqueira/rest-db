@@ -1,7 +1,5 @@
-use swc_core::ecma::visit::{
-    swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, MemberProp, ThisExpr},
-    Fold,
-};
+use swc_core::ecma::visit::Fold;
+use swc_core::ecma::visit::swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, IdentName, MemberExpr, MemberProp, ThisExpr};
 
 pub struct CallFunctionWithContextTransformer;
 
@@ -23,12 +21,12 @@ impl Fold for CallFunctionWithContextTransformer {
                     obj: Box::new(Expr::Ident(Ident {
                         span: call.span,
                         sym: name,
-                        optional: false,
+                        ..Default::default()
                     })),
-                    prop: MemberProp::Ident(Ident {
+                    prop: MemberProp::Ident(IdentName {
                         span: call.span,
                         sym: "call".into(),
-                        optional: false,
+                        ..Default::default()
                     }),
                 }))),
                 args,
