@@ -82,7 +82,7 @@ impl QueryEngine {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            let mut program = parse_file_as_program(
+            let program = parse_file_as_program(
                 &source,
                 Syntax::Typescript(TsSyntax {
                     tsx: true,
@@ -96,9 +96,8 @@ impl QueryEngine {
             .map(|program| program.apply(resolver(unresolved_mark, top_level_mark, true)))
             .map(|program| program.apply(strip(unresolved_mark, top_level_mark)))
             .map(|program| program.apply(paren_remover(None)))
+            .map(|program| program.fold_with(&mut CallFunctionWithContextTransformer))
             .unwrap();
-
-            let program = program.fold_with(&mut CallFunctionWithContextTransformer);
 
             let mut buf = vec![];
 
