@@ -1,12 +1,26 @@
 use regex::{Captures, Regex};
 use std::{
     collections::HashMap,
-    fs,
+    path::Path,
     sync::{
         mpsc::{self, Sender},
         LazyLock,
     },
     thread,
+};
+use swc_core::{
+    common::{
+        comments::SingleThreadedComments,
+        errors::{ColorConfig, Handler},
+        sync::Lrc,
+        Globals, Mark, SourceMap, GLOBALS,
+    },
+    ecma::{
+        codegen::{text_writer::JsWriter, Emitter},
+        parser::{lexer::Lexer, Parser, StringInput, Syntax},
+        transforms::typescript::strip,
+        visit::FoldWith,
+    },
 };
 
 use v8::{
@@ -37,6 +51,60 @@ impl QueryEngine {
     fn new() -> Self {
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
 
+        let path = "./script.ts";
+
+        let cm: Lrc<SourceMap> = Default::default();
+        let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
+
+        let source = cm
+            .load_file(Path::new(&path))
+            .expect("failed to load input typescript file");
+
+        let comments = SingleThreadedComments::default();
+
+        let lexer = Lexer::new(
+            Syntax::Typescript(Default::default()),
+            Default::default(),
+            StringInput::from(&*source),
+            Some(&comments),
+        );
+
+        let mut parser = Parser::new_from(lexer);
+
+        for e in parser.take_errors() {
+            e.into_diagnostic(&handler).emit();
+        }
+
+        let program = parser
+            .parse_program()
+            .map_err(|e| e.into_diagnostic(&handler).emit())
+            .expect("failed to parse program.");
+
+        let globals = Globals::default();
+
+        let code = GLOBALS.set(&globals, || {
+            let top_level_mark = Mark::new();
+            let strip = &mut strip(top_level_mark);
+            let program = program.fold_with(strip);
+
+            let mut buf = vec![];
+
+            let mut emitter = Emitter {
+                cfg: swc_core::ecma::codegen::Config::default(),
+                cm: cm.clone(),
+                comments: Some(&comments),
+                wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
+            };
+
+            emitter.emit_program(&program).unwrap();
+
+            let code = String::from_utf8(buf).expect("non-utf8?");
+
+            println!("Code: {}", code);
+
+            return code;
+        });
+
         thread::spawn(move || {
             let platform = new_default_platform(0, false).make_shared();
 
@@ -62,13 +130,11 @@ impl QueryEngine {
 
             let mut context_scope = ContextScope::new(&mut isolate_scope, context);
 
-            let path = "./script.js";
+            let code = v8::String::new(&mut context_scope, &Self::sanitize(code)).unwrap();
 
-            let code = v8::String::new(&mut context_scope, &QueryEngine::sanitize(
-                fs::read_to_string(&path).expect(&*format!("could not find script {path}")),
-            )).unwrap();
-
-            Script::compile(&mut context_scope, code, None).unwrap().run(&mut context_scope);
+            Script::compile(&mut context_scope, code, None)
+                .unwrap()
+                .run(&mut context_scope);
 
             let global = context.global(&mut context_scope);
 
@@ -77,7 +143,7 @@ impl QueryEngine {
 
                 for (key, value) in item.args.iter() {
                     let local_key = v8::String::new(&mut context_scope, key).unwrap();
-                    let local_value = QueryEngine::parse(&mut context_scope, value);
+                    let local_value = Self::parse(&mut context_scope, value);
                     args.set(&mut context_scope, local_key.into(), local_value);
                 }
 
