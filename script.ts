@@ -1,3 +1,5 @@
+
+
 function test(args: { text: string }) {
     $collection("user");
     $filter(user => user.name.includes(args.text));

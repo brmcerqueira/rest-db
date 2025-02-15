@@ -10,11 +10,11 @@ use std::{
 };
 use swc_core::bundler::{Bundler, Hook, Load, ModuleData, ModuleRecord, Resolve};
 use swc_core::common::{FileName, Span};
-use swc_core::ecma::codegen;
 use swc_core::ecma::loader::resolve::Resolution;
-use swc_core::ecma::parser::parse_file_as_module;
 use swc_core::ecma::transforms::base::resolver;
-use swc_core::ecma::visit::swc_ecma_ast::{EsVersion, KeyValueProp};
+use swc_core::ecma::transforms::typescript::strip;
+use swc_core::ecma::visit::swc_ecma_ast::KeyValueProp;
+use swc_core::ecma::codegen;
 use swc_core::{bundler, common::{
     comments::SingleThreadedComments,
     errors::{ColorConfig, Handler},
@@ -22,7 +22,6 @@ use swc_core::{bundler, common::{
 }, ecma::{
     codegen::{text_writer::JsWriter, Emitter},
     parser::{lexer::Lexer, Parser, StringInput, Syntax},
-    transforms::typescript::strip,
     visit::FoldWith,
 }};
 use v8::{
@@ -67,13 +66,18 @@ impl Load for Loader {
             _ => unreachable!(),
         };
 
-        let module = parse_file_as_module(
-            &fm,
-            Syntax::Es(Default::default()),
-            EsVersion::Es2020,
+        let unresolved_mark = Mark::new();
+        let top_level_mark = Mark::new();
+
+        let program = Parser::new_from(Lexer::new(
+            Syntax::Typescript(Default::default()),
+            Default::default(),
+            StringInput::from(&*fm),
             None,
-            &mut Vec::new(),
-        )
+        )).parse_typescript_module()
+            //.map(|program| program.apply(resolver(unresolved_mark, top_level_mark, true)))
+            //.map(|program| program.apply(strip(unresolved_mark, top_level_mark)))
+            .map(|program| program.fold_with(&mut CallFunctionWithContextTransformer))
             .unwrap_or_else(|err| {
                 let handler =
                     Handler::with_tty_emitter(ColorConfig::Always, false, false, Some(self.cm.clone()));
@@ -83,7 +87,7 @@ impl Load for Loader {
 
         Ok(ModuleData {
             fm,
-            module,
+            module: program,
             helpers: Default::default(),
         })
     }
@@ -108,7 +112,7 @@ impl Resolve for PathResolver {
                 base.parent()
                     .unwrap()
                     .join(module_specifier)
-                    .with_extension("js"),
+                    .with_extension("ts"),
             ),
             slug: None,
         })
@@ -160,20 +164,12 @@ impl QueryEngine {
             Box::new(Noop),
         );
 
-        //let mut entries = HashMap::default();
-        //entries.insert("script".to_string(), FileName::Real(path.into()));
-        //let mut bundles = bundler.bundle(entries).expect("failed to bundle");
+        let mut entries = HashMap::default();
+        entries.insert("script".to_string(), FileName::Real(path.into()));
+        let mut bundles = bundler.bundle(entries).expect("failed to bundle");
 
         let code = GLOBALS.set(&globals, || {
-            let unresolved_mark = Mark::new();
-            let top_level_mark = Mark::new();
-
-            let module = parser.parse_program()
-            .map_err(|err| err.into_diagnostic(&handler).emit())
-            .map(|module| module.apply(resolver(unresolved_mark, top_level_mark, true)))
-            .map(|module| module.apply(strip(unresolved_mark, top_level_mark)))
-            .map(|module| module.fold_with(&mut CallFunctionWithContextTransformer))
-            .unwrap();
+            let bundle = bundles.pop().unwrap();
 
             let mut buf = vec![];
 
@@ -184,16 +180,12 @@ impl QueryEngine {
                 wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
             };
 
-            emitter.emit_program(&module).unwrap();
-
-            //let bundle = bundles.pop().unwrap();
-
-            //emitter.emit_module(&bundle.module).unwrap();
+            emitter.emit_module(&bundle.module).unwrap();
 
             return String::from_utf8(buf).expect("non-utf8?");
         });
 
-        println!("code: {:?}", code);
+        println!("code: {}", code);
 
         thread::spawn(move || {
             let platform = new_default_platform(0, false).make_shared();
