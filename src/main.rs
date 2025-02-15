@@ -6,13 +6,14 @@ mod utils;
 mod typescript_load;
 mod path_resolve;
 
-use std::{collections::HashMap, sync::mpsc};
-
+use actix_multipart::form::tempfile::TempFile;
+use actix_multipart::form::MultipartForm;
 use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
 use query_engine::{QueryEngineCall, QUERY_ENGINE};
 use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::{collections::HashMap, sync::mpsc};
 
 #[derive(Deserialize, Serialize)]
 struct CollectionCreate {
@@ -73,10 +74,25 @@ async fn query(
     .body(receiver.recv().unwrap())
 }
 
+#[derive(Debug, MultipartForm)]
+struct UploadForm {
+    #[multipart(limit = "100MB")]
+    file: TempFile,
+}
+
+#[put("/script")]
+async fn upload_script(MultipartForm(form): MultipartForm<UploadForm>) -> impl Responder {
+    format!(
+        "Uploaded file {}, with size: {}",
+        form.file.file_name.unwrap(), form.file.size
+    )
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
+            .service(upload_script)
             .service(collection_get)
             .service(collection_create)
             .service(collection_update)
