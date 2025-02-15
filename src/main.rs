@@ -3,6 +3,8 @@ mod query_engine;
 mod repository;
 mod stages;
 mod utils;
+mod typescript_load;
+mod path_resolve;
 
 use std::{collections::HashMap, sync::mpsc};
 

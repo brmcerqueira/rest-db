@@ -8,31 +8,22 @@ use std::{
     },
     thread,
 };
-use swc_core::bundler::{Bundler, Hook, Load, ModuleData, ModuleRecord, ModuleType, Resolve};
+use swc_core::bundler::{Bundler, Hook, ModuleRecord, ModuleType};
 use swc_core::common::{FileName, Span};
 use swc_core::ecma::codegen;
-use swc_core::ecma::loader::resolve::Resolution;
-use swc_core::ecma::transforms::base::fixer::fixer;
-use swc_core::ecma::transforms::base::hygiene::hygiene;
-use swc_core::ecma::transforms::base::resolver;
-use swc_core::ecma::transforms::typescript::{strip, typescript, Config};
-use swc_core::ecma::visit::swc_ecma_ast::{EsVersion, KeyValueProp, Program};
+use swc_core::ecma::visit::swc_ecma_ast::KeyValueProp;
 use swc_core::{bundler, common::{
-    errors::{ColorConfig, Handler},
-    Globals, Mark, SourceMap, GLOBALS,
-}, ecma::{
-    codegen::{text_writer::JsWriter, Emitter},
-    parser::{lexer::Lexer, Parser, StringInput, Syntax},
-    visit::FoldWith,
-}};
+    Globals, SourceMap,
+}, ecma::codegen::{text_writer::JsWriter, Emitter}};
 use v8::{
     json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
     Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
     V8::{initialize, initialize_platform},
 };
 
+use crate::path_resolve::PathResolve;
+use crate::typescript_load::TypescriptLoad;
 use crate::{
-    call_function_with_context_transformer::CallFunctionWithContextTransformer,
     stages::global_functions, utils::get_function,
 };
 
@@ -56,74 +47,6 @@ impl Hook for Noop {
     }
 }
 
-pub struct Loader {
-    pub cm: Rc<SourceMap>,
-}
-
-impl Load for Loader {
-    fn load(&self, f: &FileName) -> Result<ModuleData, anyhow::Error> {
-        let fm = match f {
-            FileName::Real(path) => self.cm.load_file(path)?,
-            _ => unreachable!(),
-        };
-
-        let module = Parser::new_from(Lexer::new(
-            Syntax::Typescript(Default::default()),
-            EsVersion::latest(),
-            StringInput::from(&*fm),
-            None,
-        )).parse_typescript_module()
-            .map(|module| {
-                let unresolved_mark = Mark::new();
-                let top_level_mark = Mark::new();
-                Program::Module(module)
-                    .apply(resolver(unresolved_mark, top_level_mark, true))
-                    .apply(strip(unresolved_mark, top_level_mark))
-                    .apply(hygiene())
-                    .apply(fixer(None)).expect_module()
-            })
-            .map(|module| module.fold_with(&mut CallFunctionWithContextTransformer))
-            .unwrap_or_else(|err| {
-                let handler =
-                    Handler::with_tty_emitter(ColorConfig::Always, false, false, Some(self.cm.clone()));
-                err.into_diagnostic(&handler).emit();
-                panic!("failed to parse")
-            });
-
-        Ok(ModuleData {
-            fm,
-            module,
-            helpers: Default::default(),
-        })
-    }
-}
-
-struct PathResolver;
-
-impl Resolve for PathResolver {
-    fn resolve(&self, base: &FileName, module_specifier: &str) -> Result<Resolution, anyhow::Error> {
-        assert!(
-            module_specifier.starts_with('.'),
-            "We are not using node_modules within this example"
-        );
-
-        let base = match base {
-            FileName::Real(v) => v,
-            _ => unreachable!(),
-        };
-
-        Ok(Resolution {
-            filename: FileName::Real(
-                base.parent()
-                    .unwrap()
-                    .join(module_specifier)
-                    .with_extension("ts"),
-            ),
-            slug: None,
-        })
-    }
-}
-
 impl QueryEngine {
     fn new() -> Self {
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
@@ -137,8 +60,8 @@ impl QueryEngine {
         let mut bundler = Bundler::new(
             &globals,
             cm.clone(),
-            Loader { cm: cm.clone() },
-            PathResolver,
+            TypescriptLoad { cm: cm.clone() },
+            PathResolve,
             bundler::Config {
                 require: false,
                 disable_inliner: true,
