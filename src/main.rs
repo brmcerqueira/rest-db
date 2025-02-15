@@ -13,7 +13,9 @@ use query_engine::{QueryEngineCall, QUERY_ENGINE};
 use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::io::Read;
 use std::{collections::HashMap, sync::mpsc};
+use zip::ZipArchive;
 
 #[derive(Deserialize, Serialize)]
 struct CollectionCreate {
@@ -77,15 +79,30 @@ async fn query(
 #[derive(Debug, MultipartForm)]
 struct UploadForm {
     #[multipart(limit = "100MB")]
-    file: TempFile,
+    script: TempFile,
 }
-
 #[put("/script")]
 async fn upload_script(MultipartForm(form): MultipartForm<UploadForm>) -> impl Responder {
-    format!(
-        "Uploaded file {}, with size: {}",
-        form.file.file_name.unwrap(), form.file.size
-    )
+    let mut archive = ZipArchive::new(form.script.file).expect("TODO: panic message");
+
+    let mut extracted_files = vec![];
+
+    for i in 0..archive.len() {
+        let mut file = match archive.by_index(i) {
+            Ok(file) => file,
+            Err(_) => continue,
+        };
+
+        let mut file_content = Vec::new();
+        if let Err(_) = file.read_to_end(&mut file_content) {
+            return HttpResponse::InternalServerError().body("Erro ao ler o arquivo dentro do ZIP");
+        }
+
+        extracted_files.push((file.name().to_string(), file_content));
+    }
+
+    let num_files = extracted_files.len();
+    HttpResponse::Ok().body(format!("{} arquivos extraídos com sucesso do ZIP", num_files))
 }
 
 #[actix_web::main]
