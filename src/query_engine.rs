@@ -51,7 +51,7 @@ impl QueryEngine {
     fn new() -> Self {
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
 
-        let path = "./script.ts";
+        let file_name = "script";
 
         let cm: Rc<SourceMap> = Default::default();
 
@@ -75,7 +75,7 @@ impl QueryEngine {
         );
 
         let mut entries = HashMap::default();
-        entries.insert("script".to_string(), FileName::Real(path.into()));
+        entries.insert(file_name.to_string(), FileName::Real(format!("{file_name}.ts").into()));
         let mut bundles = bundler.bundle(entries).expect("failed to bundle");
 
         let bundle = bundles.pop().unwrap();
