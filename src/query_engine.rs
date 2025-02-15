@@ -1,6 +1,6 @@
 use std::{
-    collections::HashMap,
-    path::Path,
+    collections::HashMap
+    ,
     rc::Rc,
     sync::{
         mpsc::{self, Sender},
@@ -10,13 +10,14 @@ use std::{
 };
 use swc_core::bundler::{Bundler, Hook, Load, ModuleData, ModuleRecord, Resolve};
 use swc_core::common::{FileName, Span};
-use swc_core::ecma::loader::resolve::Resolution;
-use swc_core::ecma::transforms::base::resolver;
-use swc_core::ecma::transforms::typescript::strip;
-use swc_core::ecma::visit::swc_ecma_ast::KeyValueProp;
 use swc_core::ecma::codegen;
+use swc_core::ecma::loader::resolve::Resolution;
+use swc_core::ecma::transforms::base::fixer::fixer;
+use swc_core::ecma::transforms::base::hygiene::hygiene;
+use swc_core::ecma::transforms::base::resolver;
+use swc_core::ecma::transforms::typescript::{typescript, Config};
+use swc_core::ecma::visit::swc_ecma_ast::{EsVersion, KeyValueProp, Program};
 use swc_core::{bundler, common::{
-    comments::SingleThreadedComments,
     errors::{ColorConfig, Handler},
     Globals, Mark, SourceMap, GLOBALS,
 }, ecma::{
@@ -66,17 +67,27 @@ impl Load for Loader {
             _ => unreachable!(),
         };
 
-        let unresolved_mark = Mark::new();
-        let top_level_mark = Mark::new();
-
         let program = Parser::new_from(Lexer::new(
             Syntax::Typescript(Default::default()),
-            Default::default(),
+            EsVersion::Es2024,
             StringInput::from(&*fm),
             None,
         )).parse_typescript_module()
-            //.map(|program| program.apply(resolver(unresolved_mark, top_level_mark, true)))
-            //.map(|program| program.apply(strip(unresolved_mark, top_level_mark)))
+            .map(|p| {
+                let unresolved_mark = Mark::new();
+                let top_level_mark = Mark::new();
+                Program::Module(p)
+                    .apply(resolver(unresolved_mark, top_level_mark, true))
+                    .apply(typescript(Config {
+                            no_empty_export: true,
+                            ..Default::default()
+                        },
+                        unresolved_mark,
+                        top_level_mark,
+                    ))
+                    .apply(hygiene())
+                    .apply(fixer(None)).expect_module()
+            })
             .map(|program| program.fold_with(&mut CallFunctionWithContextTransformer))
             .unwrap_or_else(|err| {
                 let handler =
@@ -126,24 +137,6 @@ impl QueryEngine {
         let path = "./script.ts";
 
         let cm: Rc<SourceMap> = Default::default();
-        let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
-
-        let source = cm
-            .load_file(Path::new(&path))
-            .expect("failed to load input typescript file");
-
-        let comments = SingleThreadedComments::default();
-
-        let mut parser = Parser::new_from(Lexer::new(
-            Syntax::Typescript(Default::default()),
-            Default::default(),
-            StringInput::from(&*source),
-            Some(&comments),
-        ));
-
-        for e in parser.take_errors() {
-            e.into_diagnostic(&handler).emit();
-        }
 
         let globals = Globals::default();
 
@@ -176,7 +169,7 @@ impl QueryEngine {
             let mut emitter = Emitter {
                 cfg: codegen::Config::default(),
                 cm: cm.clone(),
-                comments: Some(&comments),
+                comments: None,
                 wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
             };
 

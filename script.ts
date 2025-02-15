@@ -1,8 +1,8 @@
+import {$test} from "./test";
 
-
-function test(args: { text: string }) {
+export function test(args: { text: string }) {
     $collection("user");
     $filter(user => user.name.includes(args.text));
-    $lookup("user", "test", (l, r) => l.$id == r.$id);
+    $test()
     $lookup("user", (item, result) => item.test2 = result, (l, r) => l.$id == r.$id);
 }
