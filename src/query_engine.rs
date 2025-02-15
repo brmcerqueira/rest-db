@@ -8,14 +8,14 @@ use std::{
     },
     thread,
 };
-use swc_core::bundler::{Bundler, Hook, Load, ModuleData, ModuleRecord, Resolve};
+use swc_core::bundler::{Bundler, Hook, Load, ModuleData, ModuleRecord, ModuleType, Resolve};
 use swc_core::common::{FileName, Span};
 use swc_core::ecma::codegen;
 use swc_core::ecma::loader::resolve::Resolution;
 use swc_core::ecma::transforms::base::fixer::fixer;
 use swc_core::ecma::transforms::base::hygiene::hygiene;
 use swc_core::ecma::transforms::base::resolver;
-use swc_core::ecma::transforms::typescript::{typescript, Config};
+use swc_core::ecma::transforms::typescript::{strip, typescript, Config};
 use swc_core::ecma::visit::swc_ecma_ast::{EsVersion, KeyValueProp, Program};
 use swc_core::{bundler, common::{
     errors::{ColorConfig, Handler},
@@ -67,28 +67,22 @@ impl Load for Loader {
             _ => unreachable!(),
         };
 
-        let program = Parser::new_from(Lexer::new(
+        let module = Parser::new_from(Lexer::new(
             Syntax::Typescript(Default::default()),
-            EsVersion::Es2024,
+            EsVersion::latest(),
             StringInput::from(&*fm),
             None,
         )).parse_typescript_module()
-            .map(|p| {
+            .map(|module| {
                 let unresolved_mark = Mark::new();
                 let top_level_mark = Mark::new();
-                Program::Module(p)
+                Program::Module(module)
                     .apply(resolver(unresolved_mark, top_level_mark, true))
-                    .apply(typescript(Config {
-                            no_empty_export: true,
-                            ..Default::default()
-                        },
-                        unresolved_mark,
-                        top_level_mark,
-                    ))
+                    .apply(strip(unresolved_mark, top_level_mark))
                     .apply(hygiene())
                     .apply(fixer(None)).expect_module()
             })
-            .map(|program| program.fold_with(&mut CallFunctionWithContextTransformer))
+            .map(|module| module.fold_with(&mut CallFunctionWithContextTransformer))
             .unwrap_or_else(|err| {
                 let handler =
                     Handler::with_tty_emitter(ColorConfig::Always, false, false, Some(self.cm.clone()));
@@ -98,7 +92,7 @@ impl Load for Loader {
 
         Ok(ModuleData {
             fm,
-            module: program,
+            module,
             helpers: Default::default(),
         })
     }
@@ -152,7 +146,7 @@ impl QueryEngine {
                 disable_fixer: false,
                 disable_hygiene: false,
                 disable_dce: false,
-                module: Default::default(),
+                module: ModuleType::Iife,
             },
             Box::new(Noop),
         );
@@ -205,11 +199,9 @@ impl QueryEngine {
 
             let code = v8::String::new(&mut context_scope, &code).unwrap();
 
-            Script::compile(&mut context_scope, code, None)
+            let result = Script::compile(&mut context_scope, code, None)
                 .unwrap()
-                .run(&mut context_scope);
-
-            let global = context.global(&mut context_scope);
+                .run(&mut context_scope).unwrap().to_object(&mut context_scope).unwrap();
 
             for item in receiver {
                 let args = Object::new(&mut context_scope);
@@ -222,7 +214,7 @@ impl QueryEngine {
 
                 let array = Array::new(&mut context_scope, 0).into();
 
-                get_function(&mut context_scope, global.into(), &item.name).call(
+                get_function(&mut context_scope, result, &item.name).call(
                     &mut context_scope,
                     array,
                     &[args.into()],
