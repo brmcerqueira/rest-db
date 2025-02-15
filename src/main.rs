@@ -1,10 +1,10 @@
 mod call_function_with_context_transformer;
+mod path_resolve;
 mod query_engine;
 mod repository;
 mod stages;
-mod utils;
 mod typescript_load;
-mod path_resolve;
+mod utils;
 
 use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::MultipartForm;
@@ -23,19 +23,16 @@ struct CollectionCreate {
 }
 
 #[get("/collection/{name}/{id}")]
-async fn collection_get(
-    path: web::Path<(String, String)>
-) -> impl Responder {
+async fn collection_get(path: web::Path<(String, String)>) -> impl Responder {
     let (name, id) = path.into_inner();
     let body = REPOSITORY.get(name, id);
-    HttpResponse::Ok().content_type("application/json").body(body)
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(body)
 }
 
 #[put("/collection/{name}")]
-async fn collection_create(
-    json: web::Json<Value>,
-    path: web::Path<String>
-) -> impl Responder {
+async fn collection_create(json: web::Json<Value>, path: web::Path<String>) -> impl Responder {
     let id = REPOSITORY.create(path.into_inner(), json.into_inner());
     HttpResponse::Ok().json(CollectionCreate { id })
 }
@@ -43,7 +40,7 @@ async fn collection_create(
 #[post("/collection/{name}/{id}")]
 async fn collection_update(
     json: web::Json<Value>,
-    path: web::Path<(String, String)>
+    path: web::Path<(String, String)>,
 ) -> impl Responder {
     let (name, id) = path.into_inner();
     REPOSITORY.update(name, id, json.into_inner());
@@ -51,9 +48,7 @@ async fn collection_update(
 }
 
 #[delete("/collection/{name}/{id}")]
-async fn collection_delete(
-    path: web::Path<(String, String)>
-) -> impl Responder {
+async fn collection_delete(path: web::Path<(String, String)>) -> impl Responder {
     let (name, id) = path.into_inner();
     REPOSITORY.delete(name, id);
     HttpResponse::Ok()
@@ -62,18 +57,21 @@ async fn collection_delete(
 #[get("/query/{name}")]
 async fn query(
     path: web::Path<String>,
-    query: web::Query<HashMap<String, String>>
+    query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
     let (result, receiver) = mpsc::channel::<String>();
 
-    QUERY_ENGINE.call.send(QueryEngineCall {
-        name: path.into_inner(),
-        args: query.0,
-        result
-    }).unwrap();
+    QUERY_ENGINE
+        .call
+        .send(QueryEngineCall {
+            name: path.into_inner(),
+            args: query.0,
+            result,
+        })
+        .unwrap();
     HttpResponse::Ok()
-    .content_type("application/json")
-    .body(receiver.recv().unwrap())
+        .content_type("application/json")
+        .body(receiver.recv().unwrap())
 }
 
 #[derive(Debug, MultipartForm)]
@@ -81,9 +79,14 @@ struct UploadForm {
     #[multipart(limit = "100MB")]
     script: TempFile,
 }
-#[put("/script")]
-async fn upload_script(MultipartForm(form): MultipartForm<UploadForm>) -> impl Responder {
-    let mut archive = ZipArchive::new(form.script.file).expect("TODO: panic message");
+#[put("/script/{main}")]
+async fn upload_script(
+    path: web::Path<String>,
+    MultipartForm(form): MultipartForm<UploadForm>,
+) -> impl Responder {
+    let main = path.into_inner();
+
+    let mut archive = ZipArchive::new(form.script.file).unwrap();
 
     let mut extracted_files = vec![];
 
@@ -95,14 +98,14 @@ async fn upload_script(MultipartForm(form): MultipartForm<UploadForm>) -> impl R
 
         let mut file_content = Vec::new();
         if let Err(_) = file.read_to_end(&mut file_content) {
-            return HttpResponse::InternalServerError().body("Erro ao ler o arquivo dentro do ZIP");
+            return HttpResponse::InternalServerError();
         }
 
+        println!("File: {}", file.name().to_string());
         extracted_files.push((file.name().to_string(), file_content));
     }
 
-    let num_files = extracted_files.len();
-    HttpResponse::Ok().body(format!("{} arquivos extraídos com sucesso do ZIP", num_files))
+    HttpResponse::Ok()
 }
 
 #[actix_web::main]
@@ -113,7 +116,7 @@ async fn main() -> std::io::Result<()> {
             .service(collection_get)
             .service(collection_create)
             .service(collection_update)
-            .service(collection_delete)       
+            .service(collection_delete)
             .service(query)
     })
     .bind(("127.0.0.1", 8080))?

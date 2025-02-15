@@ -1,6 +1,6 @@
-import {$test} from "./test";
+import {$test} from "./inner/test";
 
-export function test(args: { text: string }) {
+export function queryUser(args: { text: string }) {
     $collection("user");
     $filter(user => user.name.includes(args.text));
     $test()
