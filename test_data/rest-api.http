@@ -53,7 +53,7 @@ Content-Type: multipart/form-data; boundary=WebAppBoundary
 --WebAppBoundary
 Content-Disposition: form-data; name="script"; filename="test_data.zip"
 
-< ./test_data/test_data.zip
+< ./test_data.zip
 --WebAppBoundary--
 
 <> 2025-02-15T151140.200.txt
