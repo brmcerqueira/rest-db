@@ -61,7 +61,7 @@ impl QueryEngine {
             &globals,
             cm.clone(),
             TypescriptLoad { cm: cm.clone() },
-            PathResolve,
+            PathResolve { cm: cm.clone() },
             bundler::Config {
                 require: false,
                 disable_inliner: true,
