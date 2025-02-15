@@ -1,28 +1,17 @@
 use std::{
-    collections::HashMap
-    ,
-    rc::Rc,
+    collections::HashMap,
     sync::{
         mpsc::{self, Sender},
         LazyLock,
     },
     thread,
 };
-use swc_core::bundler::{Bundler, Hook, ModuleRecord, ModuleType};
-use swc_core::common::{FileName, Span};
-use swc_core::ecma::codegen;
-use swc_core::ecma::visit::swc_ecma_ast::KeyValueProp;
-use swc_core::{bundler, common::{
-    Globals, SourceMap,
-}, ecma::codegen::{text_writer::JsWriter, Emitter}};
 use v8::{
     json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
     Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
     V8::{initialize, initialize_platform},
 };
 
-use crate::path_resolve::PathResolve;
-use crate::typescript_load::TypescriptLoad;
 use crate::{
     stages::global_functions, utils::get_function,
 };
@@ -39,59 +28,11 @@ pub struct QueryEngine {
     pub call: Sender<QueryEngineCall>,
 }
 
-struct Noop;
-
-impl Hook for Noop {
-    fn get_import_meta_props(&self, _: Span, _: &ModuleRecord) -> Result<Vec<KeyValueProp>, anyhow::Error> {
-        unimplemented!()
-    }
-}
-
 impl QueryEngine {
     fn new() -> Self {
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
 
-        let file_name = "script";
-
-        let cm: Rc<SourceMap> = Default::default();
-
-        let globals = Globals::default();
-
-        let mut bundler = Bundler::new(
-            &globals,
-            cm.clone(),
-            TypescriptLoad { cm: cm.clone() },
-            PathResolve { cm: cm.clone() },
-            bundler::Config {
-                require: false,
-                disable_inliner: true,
-                external_modules: Default::default(),
-                disable_fixer: false,
-                disable_hygiene: false,
-                disable_dce: false,
-                module: ModuleType::Iife,
-            },
-            Box::new(Noop),
-        );
-
-        let mut entries = HashMap::default();
-        entries.insert(file_name.to_string(), FileName::Real(format!("{file_name}.ts").into()));
-        let mut bundles = bundler.bundle(entries).expect("failed to bundle");
-
-        let mut buf = vec![];
-
-        let mut emitter = Emitter {
-            cfg: codegen::Config::default(),
-            cm: cm.clone(),
-            comments: None,
-            wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
-        };
-
-        emitter.emit_module(&bundles.pop().unwrap().module).unwrap();
-
-        let code = String::from_utf8(buf).expect("non-utf8?");
-
-        println!("code: {}", code);
+        let code = "";
 
         thread::spawn(move || {
             let platform = new_default_platform(0, false).make_shared();

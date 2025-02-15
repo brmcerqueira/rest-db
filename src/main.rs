@@ -1,9 +1,7 @@
-mod call_function_with_context_transformer;
-mod path_resolve;
 mod query_engine;
 mod repository;
 mod stages;
-mod typescript_load;
+mod typescript;
 mod utils;
 
 use actix_multipart::form::tempfile::TempFile;
@@ -13,9 +11,14 @@ use query_engine::{QueryEngineCall, QUERY_ENGINE};
 use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::io::Read;
 use std::{collections::HashMap, sync::mpsc};
-use zip::ZipArchive;
+use crate::typescript::ts_transpiler::TsTranspiler;
+
+#[derive(Debug, MultipartForm)]
+struct UploadScript {
+    #[multipart(limit = "100MB")]
+    script: TempFile,
+}
 
 #[derive(Deserialize, Serialize)]
 struct CollectionCreate {
@@ -74,38 +77,13 @@ async fn query(
         .body(receiver.recv().unwrap())
 }
 
-#[derive(Debug, MultipartForm)]
-struct UploadForm {
-    #[multipart(limit = "100MB")]
-    script: TempFile,
-}
 #[put("/script/{main}")]
 async fn upload_script(
     path: web::Path<String>,
-    MultipartForm(form): MultipartForm<UploadForm>,
+    MultipartForm(form): MultipartForm<UploadScript>,
 ) -> impl Responder {
-    let main = path.into_inner();
-
-    let mut archive = ZipArchive::new(form.script.file).unwrap();
-
-    let mut extracted_files = vec![];
-
-    for i in 0..archive.len() {
-        let mut file = match archive.by_index(i) {
-            Ok(file) => file,
-            Err(_) => continue,
-        };
-
-        let mut file_content = Vec::new();
-        if let Err(_) = file.read_to_end(&mut file_content) {
-            return HttpResponse::InternalServerError();
-        }
-
-        println!("File: {}", file.name().to_string());
-        extracted_files.push((file.name().to_string(), file_content));
-    }
-
-    HttpResponse::Ok()
+    let ts = TsTranspiler::new(form.script.file, path.into_inner());
+    HttpResponse::Ok().body(ts.code)
 }
 
 #[actix_web::main]

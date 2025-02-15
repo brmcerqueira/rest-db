@@ -1,5 +1,7 @@
+use swc_core::ecma::visit::swc_ecma_ast::{
+    CallExpr, Callee, Expr, ExprOrSpread, Ident, IdentName, MemberExpr, MemberProp, ThisExpr,
+};
 use swc_core::ecma::visit::Fold;
-use swc_core::ecma::visit::swc_ecma_ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, IdentName, MemberExpr, MemberProp, ThisExpr};
 
 pub struct CallFunctionWithContextTransformer;
 

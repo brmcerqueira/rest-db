@@ -1,6 +1,6 @@
-pub mod filter; 
-pub mod collection;
-pub mod lookup;
+mod filter;
+mod collection;
+mod lookup;
 
 use v8::{FunctionTemplate, HandleScope, Local, ObjectTemplate};
 
