@@ -24,4 +24,4 @@ swc_core = { version = "13.3.0", features = [
     "bundler"
 ] }
 anyhow = "1.0.95"
-zip = "2.2.2"
+virtual-filesystem = "0.2.1"

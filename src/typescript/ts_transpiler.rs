@@ -1,5 +1,7 @@
+use crate::typescript::path_resolve::PathResolve;
+use crate::typescript::ts_load::TsLoad;
 use std::collections::HashMap;
-use std::{fs, io};
+use std::io;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -10,9 +12,8 @@ use swc_core::ecma::visit::swc_ecma_ast::KeyValueProp;
 use swc_core::{bundler, common::{
     Globals, SourceMap,
 }, ecma::codegen::{text_writer::JsWriter, Emitter}};
-use zip::ZipArchive;
-use crate::typescript::path_resolve::PathResolve;
-use crate::typescript::ts_load::TsLoad;
+use virtual_filesystem::FileSystem;
+use virtual_filesystem::zip_fs::ZipFS;
 
 struct Noop;
 
@@ -26,11 +27,14 @@ pub struct TsTranspiler {
     pub code: String,
 }
 
-pub struct TsFileLoader;
+pub struct TsFileLoader<R: Read + Seek> {
+    zip_fs: ZipFS<R>,
+    root: PathBuf
+}
 
-impl FileLoader for TsFileLoader {
+impl <R: Read + Seek> FileLoader for TsFileLoader<R> {
     fn file_exists(&self, path: &Path) -> bool {
-        fs::metadata(path).is_ok()
+        self.zip_fs.exists(self.root.join(path).to_str().unwrap()).unwrap()
     }
 
     fn abs_path(&self, path: &Path) -> Option<PathBuf> {
@@ -38,44 +42,36 @@ impl FileLoader for TsFileLoader {
     }
 
     fn read_file(&self, path: &Path) -> io::Result<String> {
-        fs::read_to_string(path)
+        match self.zip_fs.open_file(self.root.join(path).to_str().unwrap()) {
+            Ok(mut file) => {
+                let mut content = String::new();
+                file.read_to_string(&mut content)?;
+                Ok(content)
+            },
+            _ => Ok(String::new()),
+        }
     }
 }
 
 impl TsTranspiler {
-    pub fn new<R: Read + Seek>(reader: R, main: String) -> Self {
-        let mut archive = ZipArchive::new(reader).unwrap();
-
+    pub fn new<R: Read + Seek + Send + 'static>(reader: R, main: String) -> Self {
         let mut entries = HashMap::default();
 
-        let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(Box::new(TsFileLoader), FilePathMapping::empty()));
+        let zip_fs = ZipFS::new(reader).unwrap();
 
-        for i in 0..archive.len() {
-            let mut file = archive.by_index(i).unwrap();
+        let root = "/test_data";
 
-            if !file.is_file() {
-                continue;
-            }
-
-            let mut file_content = Vec::new();
-
-            if let Err(_) = file.read_to_end(&mut file_content) {
-                continue;
-            }
-
-            println!("File: {}", file.name().to_string());
-
-            let file_name = FileName::Custom(String::from_utf8(file_content).unwrap());
-
-            let name = file.name();
-
-            if name.ends_with(&format!("{}.ts", main).to_string()) {
-                entries.insert("main.ts".to_string(), file_name);
-            }
-            else {
-
+        for dir in zip_fs.read_dir(root).unwrap().flatten() {
+            let path = dir.path;
+            if path.ends_with(&format!("{}.ts", main).to_string()) {
+                entries.insert(path.to_str().unwrap().to_string(), FileName::Real(path));
             }
         }
+
+        let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(Box::new(TsFileLoader::<R> {
+            zip_fs,
+            root: Path::new(root).to_path_buf()
+        }), FilePathMapping::default()));
 
         let globals = Globals::default();
 
