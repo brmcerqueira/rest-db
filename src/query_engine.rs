@@ -161,22 +161,20 @@ impl QueryEngine {
         entries.insert("script".to_string(), FileName::Real(path.into()));
         let mut bundles = bundler.bundle(entries).expect("failed to bundle");
 
-        let code = GLOBALS.set(&globals, || {
-            let bundle = bundles.pop().unwrap();
+        let bundle = bundles.pop().unwrap();
 
-            let mut buf = vec![];
+        let mut buf = vec![];
 
-            let mut emitter = Emitter {
-                cfg: codegen::Config::default(),
-                cm: cm.clone(),
-                comments: None,
-                wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
-            };
+        let mut emitter = Emitter {
+            cfg: codegen::Config::default(),
+            cm: cm.clone(),
+            comments: None,
+            wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
+        };
 
-            emitter.emit_module(&bundle.module).unwrap();
+        emitter.emit_module(&bundle.module).unwrap();
 
-            return String::from_utf8(buf).expect("non-utf8?");
-        });
+        let code = String::from_utf8(buf).expect("non-utf8?");
 
         println!("code: {}", code);
 
