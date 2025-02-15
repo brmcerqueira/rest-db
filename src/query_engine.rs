@@ -78,8 +78,6 @@ impl QueryEngine {
         entries.insert(file_name.to_string(), FileName::Real(format!("{file_name}.ts").into()));
         let mut bundles = bundler.bundle(entries).expect("failed to bundle");
 
-        let bundle = bundles.pop().unwrap();
-
         let mut buf = vec![];
 
         let mut emitter = Emitter {
@@ -89,7 +87,7 @@ impl QueryEngine {
             wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
         };
 
-        emitter.emit_module(&bundle.module).unwrap();
+        emitter.emit_module(&bundles.pop().unwrap().module).unwrap();
 
         let code = String::from_utf8(buf).expect("non-utf8?");
 
