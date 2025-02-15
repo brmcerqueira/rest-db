@@ -8,10 +8,14 @@ use std::{
     },
     thread,
 };
-use swc_core::ecma::parser::parse_file_as_program;
-use swc_core::ecma::transforms::base::fixer::paren_remover;
+use swc_core::bundler::{Bundler, Hook, Load, ModuleData, ModuleRecord, Resolve};
+use swc_core::common::{FileName, Span};
+use swc_core::ecma::codegen;
+use swc_core::ecma::loader::resolve::Resolution;
+use swc_core::ecma::parser::parse_file_as_module;
 use swc_core::ecma::transforms::base::resolver;
-use swc_core::{common::{
+use swc_core::ecma::visit::swc_ecma_ast::{EsVersion, KeyValueProp};
+use swc_core::{bundler, common::{
     comments::SingleThreadedComments,
     errors::{ColorConfig, Handler},
     Globals, Mark, SourceMap, GLOBALS,
@@ -21,7 +25,6 @@ use swc_core::{common::{
     transforms::typescript::strip,
     visit::FoldWith,
 }};
-use swc_core::ecma::codegen;
 use v8::{
     json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
     Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
@@ -43,6 +46,73 @@ pub struct QueryEngineCall {
 
 pub struct QueryEngine {
     pub call: Sender<QueryEngineCall>,
+}
+
+struct Noop;
+
+impl Hook for Noop {
+    fn get_import_meta_props(&self, _: Span, _: &ModuleRecord) -> Result<Vec<KeyValueProp>, anyhow::Error> {
+        unimplemented!()
+    }
+}
+
+pub struct Loader {
+    pub cm: Rc<SourceMap>,
+}
+
+impl Load for Loader {
+    fn load(&self, f: &FileName) -> Result<ModuleData, anyhow::Error> {
+        let fm = match f {
+            FileName::Real(path) => self.cm.load_file(path)?,
+            _ => unreachable!(),
+        };
+
+        let module = parse_file_as_module(
+            &fm,
+            Syntax::Es(Default::default()),
+            EsVersion::Es2020,
+            None,
+            &mut Vec::new(),
+        )
+            .unwrap_or_else(|err| {
+                let handler =
+                    Handler::with_tty_emitter(ColorConfig::Always, false, false, Some(self.cm.clone()));
+                err.into_diagnostic(&handler).emit();
+                panic!("failed to parse")
+            });
+
+        Ok(ModuleData {
+            fm,
+            module,
+            helpers: Default::default(),
+        })
+    }
+}
+
+struct PathResolver;
+
+impl Resolve for PathResolver {
+    fn resolve(&self, base: &FileName, module_specifier: &str) -> Result<Resolution, anyhow::Error> {
+        assert!(
+            module_specifier.starts_with('.'),
+            "We are not using node_modules within this example"
+        );
+
+        let base = match base {
+            FileName::Real(v) => v,
+            _ => unreachable!(),
+        };
+
+        Ok(Resolution {
+            filename: FileName::Real(
+                base.parent()
+                    .unwrap()
+                    .join(module_specifier)
+                    .with_extension("js"),
+            ),
+            slug: None,
+        })
+    }
 }
 
 impl QueryEngine {
@@ -73,21 +143,35 @@ impl QueryEngine {
 
         let globals = Globals::default();
 
+        let mut bundler = Bundler::new(
+            &globals,
+            cm.clone(),
+            Loader { cm: cm.clone() },
+            PathResolver,
+            bundler::Config {
+                require: false,
+                disable_inliner: true,
+                external_modules: Default::default(),
+                disable_fixer: false,
+                disable_hygiene: false,
+                disable_dce: false,
+                module: Default::default(),
+            },
+            Box::new(Noop),
+        );
+
+        //let mut entries = HashMap::default();
+        //entries.insert("script".to_string(), FileName::Real(path.into()));
+        //let mut bundles = bundler.bundle(entries).expect("failed to bundle");
+
         let code = GLOBALS.set(&globals, || {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
 
-            let module = parse_file_as_program(
-                &source,
-                Syntax::Typescript(Default::default()),
-                Default::default(),
-                Some(&comments),
-                &mut Vec::new(),
-            )
+            let module = parser.parse_program()
             .map_err(|err| err.into_diagnostic(&handler).emit())
             .map(|module| module.apply(resolver(unresolved_mark, top_level_mark, true)))
             .map(|module| module.apply(strip(unresolved_mark, top_level_mark)))
-            .map(|module| module.apply(paren_remover(None)))
             .map(|module| module.fold_with(&mut CallFunctionWithContextTransformer))
             .unwrap();
 
@@ -102,8 +186,14 @@ impl QueryEngine {
 
             emitter.emit_program(&module).unwrap();
 
+            //let bundle = bundles.pop().unwrap();
+
+            //emitter.emit_module(&bundle.module).unwrap();
+
             return String::from_utf8(buf).expect("non-utf8?");
         });
+
+        println!("code: {:?}", code);
 
         thread::spawn(move || {
             let platform = new_default_platform(0, false).make_shared();

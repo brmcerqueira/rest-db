@@ -18,5 +18,8 @@ swc_core = { version = "13.3.0", features = [
     "common_tty",
     "ecma_codegen",
     "ecma_parser",
-    "ecma_transforms_typescript"
+    "ecma_loader",
+    "ecma_transforms_typescript",
+    "bundler"
 ] }
+anyhow = "1.0.95"
