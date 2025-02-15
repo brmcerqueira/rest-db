@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::rc::Rc;
 use swc_core::bundler::Resolve;
 use swc_core::common::{FileName, SourceMap};
