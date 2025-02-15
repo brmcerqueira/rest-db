@@ -1,0 +1,67 @@
+GET http://localhost:8080/query/test?text=2
+Accept: */*
+
+<> 2025-02-15T115445.200.json
+<> 2025-02-15T113229.200.json
+<> 2025-02-15T112957.200.json
+<> 2025-02-15T112950.200.json
+<> 2025-02-15T112937.200.json
+<> 2025-02-15T112019.200.json
+<> 2025-02-15T111551.200.json
+<> 2025-02-15T110221.200.json
+<> 2025-02-14T220220.200.json
+<> 2025-02-14T204202.200.json
+<> 2025-02-14T191348.200.json
+<> 2025-02-14T184706.200.json
+<> 2025-02-14T184353.200.json
+
+###
+
+POST http://localhost:8080/collection/user/8e17cefb-5b3c-4cf3-8c0a-e0d2006ff1e8
+Accept: */*
+Content-Type: application/json
+
+{
+  "name": "ae3"
+}
+
+###
+
+PUT http://localhost:8080/collection/user
+Accept: */*
+Content-Type: application/json
+
+{
+  "name": "ae1"
+}
+
+###
+
+DELETE http://localhost:8080/collection/user/8e17cefb-5b3c-4cf3-8c0a-e0d2006ff1e8
+Accept: */*
+
+###
+
+GET http://localhost:8080/collection/user/8e17cefb-5b3c-4cf3-8c0a-e0d2006ff1e8
+Accept: */*
+
+###
+
+PUT http://localhost:8080/script/main
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="script"; filename="test_data.zip"
+
+< ./test_data/test_data.zip
+--WebAppBoundary--
+
+<> 2025-02-15T151140.200.txt
+<> 2025-02-15T144151.200.txt
+<> 2025-02-15T144130.400.txt
+<> 2025-02-15T141428.200.txt
+
+
+###
+
+
