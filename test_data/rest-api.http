@@ -56,12 +56,15 @@ Content-Disposition: form-data; name="script"; filename="test_data.zip"
 < ./test_data.zip
 --WebAppBoundary--
 
-<> 2025-02-15T151140.200.txt
-<> 2025-02-15T144151.200.txt
-<> 2025-02-15T144130.400.txt
-<> 2025-02-15T141428.200.txt
-
 
 ###
 
+PUT http://localhost:8080/script/main
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="script"; filename="test_data2.zip"
+
+< ./test_data2.zip
+--WebAppBoundary--
 

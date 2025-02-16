@@ -59,18 +59,35 @@ impl TsTranspiler {
 
         let zip_fs = ZipFS::new(reader).unwrap();
 
-        let root = "/test_data";
+        let mut root = String::from(".");
 
-        for dir in zip_fs.read_dir(root).unwrap().flatten() {
-            let path = dir.path;
-            if path.ends_with(&format!("{}.ts", main).to_string()) {
-                entries.insert(path.to_str().unwrap().to_string(), FileName::Real(path));
+        let mut next = root.clone();
+
+        for _ in 0..2 {
+            let dirs = zip_fs.read_dir(next.as_str()).unwrap().flatten();
+
+            for dir in dirs {
+                let path = dir.path.clone();
+                if path.ends_with(&format!("{}.ts", main).to_string()) {
+                    entries.insert(path.to_str().unwrap().to_string(), FileName::Real(path));
+                    break;
+                }
+                else {
+                    next = dir.path.to_str().unwrap().to_string();
+                }
+            }
+
+            if entries.len() == 1 {
+                break;
+            }
+            else {
+                root = next.clone();
             }
         }
 
         let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(Box::new(TsFileLoader::<R> {
             zip_fs,
-            root: Path::new(root).to_path_buf()
+            root: Path::new(&root).to_path_buf()
         }), FilePathMapping::default()));
 
         let globals = Globals::default();
