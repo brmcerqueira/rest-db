@@ -64,7 +64,7 @@ async fn query(
 ) -> impl Responder {
     let (result, receiver) = mpsc::channel::<String>();
 
-    QUERY_ENGINE
+    QUERY_ENGINE.lock().unwrap()
         .call
         .send(QueryEngineCall {
             name: path.into_inner(),

@@ -6,6 +6,7 @@ use std::{
     },
     thread,
 };
+use std::sync::Mutex;
 use v8::{
     json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
     Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
@@ -17,7 +18,12 @@ use crate::{
 };
 use crate::repository::REPOSITORY;
 
-pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| QueryEngine::new(REPOSITORY.script()));
+pub static QUERY_ENGINE: LazyLock<Mutex<QueryEngine>> = LazyLock::new(|| Mutex::new(QueryEngine::new(REPOSITORY.script())));
+
+pub fn refresh_query_engine(code: String) {
+    let mut lock = QUERY_ENGINE.lock().unwrap();
+    *lock = QueryEngine::new(code);
+}
 
 pub struct QueryEngineCall {
     pub name: String,

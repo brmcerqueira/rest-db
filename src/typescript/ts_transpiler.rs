@@ -13,6 +13,7 @@ use swc_core::{bundler, common::{
 }, ecma::codegen::{text_writer::JsWriter, Emitter}};
 use virtual_filesystem::FileSystem;
 use virtual_filesystem::zip_fs::ZipFS;
+use crate::query_engine::refresh_query_engine;
 use crate::repository::REPOSITORY;
 use crate::typescript::ts_file_loader::TsFileLoader;
 
@@ -92,5 +93,9 @@ pub fn ts_transpiler<R: Read + Seek + Send + 'static>(reader: R, main: String) {
 
     emitter.emit_module(&bundles.pop().unwrap().module).unwrap();
 
-    REPOSITORY.save_script(String::from_utf8(buf).unwrap());
+    let code = String::from_utf8(buf).unwrap();
+
+    refresh_query_engine(code.clone());
+
+    REPOSITORY.save_script(code);
 }

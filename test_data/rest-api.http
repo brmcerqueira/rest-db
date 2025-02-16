@@ -1,4 +1,4 @@
-GET http://localhost:8080/query/queryUser?text=2
+GET http://localhost:8080/query/queryUser?text=3
 Accept: */*
 
 <> 2025-02-15T115445.200.json
@@ -58,13 +58,4 @@ Content-Disposition: form-data; name="script"; filename="test_data.zip"
 
 
 ###
-
-PUT http://localhost:8080/script/main
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-
---WebAppBoundary
-Content-Disposition: form-data; name="script"; filename="test_data2.zip"
-
-< ./test_data2.zip
---WebAppBoundary--
 
