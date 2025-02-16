@@ -37,6 +37,8 @@ pub struct QueryEngine {
 
 impl QueryEngine {
     fn new(code: String) -> Self {
+        print!("Running: {}", code);
+
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
 
         thread::spawn(move || {

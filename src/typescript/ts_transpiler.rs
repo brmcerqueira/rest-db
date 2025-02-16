@@ -85,7 +85,7 @@ pub fn ts_transpiler<R: Read + Seek + Send + 'static>(reader: R, main: String) {
     let mut buf = vec![];
 
     let mut emitter = Emitter {
-        cfg: codegen::Config::default().with_minify(true),
+        cfg: codegen::Config::default().with_minify(false),
         cm: cm.clone(),
         comments: None,
         wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
@@ -94,6 +94,8 @@ pub fn ts_transpiler<R: Read + Seek + Send + 'static>(reader: R, main: String) {
     emitter.emit_module(&bundles.pop().unwrap().module).unwrap();
 
     let code = String::from_utf8(buf).unwrap();
+
+    print!("Transpiled: {}", code);
 
     refresh_query_engine(code.clone());
 

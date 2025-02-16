@@ -22,5 +22,5 @@ global!(
     ["$filter", filter::filter],
     ["$collection", collection::collection],
     ["$lookup", lookup::lookup],
-    ["project", project::project]
+    ["$project", project::project]
 );
