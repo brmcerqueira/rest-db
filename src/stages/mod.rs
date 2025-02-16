@@ -1,6 +1,7 @@
 mod filter;
 mod collection;
 mod lookup;
+mod project;
 
 use v8::{FunctionTemplate, HandleScope, Local, ObjectTemplate};
 
@@ -20,5 +21,6 @@ macro_rules! global {
 global!(
     ["$filter", filter::filter],
     ["$collection", collection::collection],
-    ["$lookup", lookup::lookup]
+    ["$lookup", lookup::lookup],
+    ["project", project::project]
 );

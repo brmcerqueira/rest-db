@@ -12,6 +12,8 @@ use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, sync::mpsc};
+use v8::new_default_platform;
+use v8::V8::{initialize, initialize_platform};
 use crate::typescript::ts_transpiler::ts_transpiler;
 
 #[derive(Debug, MultipartForm)]
@@ -89,6 +91,12 @@ async fn upload_script(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let platform = new_default_platform(0, false).make_shared();
+
+    initialize_platform(platform);
+
+    initialize();
+
     HttpServer::new(move || {
         App::new()
             .service(upload_script)

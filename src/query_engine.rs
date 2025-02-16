@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use std::{
     collections::HashMap,
     sync::{
@@ -6,17 +7,16 @@ use std::{
     },
     thread,
 };
-use std::sync::Mutex;
 use v8::{
-    json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
-    Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
-    V8::{initialize, initialize_platform},
+    json, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
+    Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value
+    ,
 };
 
+use crate::repository::REPOSITORY;
 use crate::{
     stages::global_functions, utils::get_function,
 };
-use crate::repository::REPOSITORY;
 
 pub static QUERY_ENGINE: LazyLock<Mutex<QueryEngine>> = LazyLock::new(|| Mutex::new(QueryEngine::new(REPOSITORY.script())));
 
@@ -40,12 +40,6 @@ impl QueryEngine {
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
 
         thread::spawn(move || {
-            let platform = new_default_platform(0, false).make_shared();
-
-            initialize_platform(platform);
-
-            initialize();
-
             let isolate = &mut Isolate::new(Default::default());
 
             let mut isolate_scope = HandleScope::new(isolate);

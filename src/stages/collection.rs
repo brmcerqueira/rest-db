@@ -2,7 +2,7 @@ use v8::{json, Array, FunctionCallbackArguments, HandleScope, Local, ReturnValue
 
 use crate::repository::REPOSITORY;
 
-pub fn collection(scope: &mut HandleScope, args: FunctionCallbackArguments, mut _retval: ReturnValue) {
+pub fn collection(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array: Local<Array> = args.this().try_into().unwrap();
 
     let collection = args
