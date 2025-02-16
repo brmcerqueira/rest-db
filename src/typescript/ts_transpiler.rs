@@ -13,6 +13,7 @@ use swc_core::{bundler, common::{
 }, ecma::codegen::{text_writer::JsWriter, Emitter}};
 use virtual_filesystem::FileSystem;
 use virtual_filesystem::zip_fs::ZipFS;
+use crate::repository::REPOSITORY;
 use crate::typescript::ts_file_loader::TsFileLoader;
 
 struct Noop;
@@ -23,83 +24,77 @@ impl Hook for Noop {
     }
 }
 
-pub struct TsTranspiler {
-    pub code: String,
-}
+pub fn ts_transpiler<R: Read + Seek + Send + 'static>(reader: R, main: String) {
+    let mut entries = HashMap::default();
 
-impl TsTranspiler {
-    pub fn new<R: Read + Seek + Send + 'static>(reader: R, main: String) -> Self {
-        let mut entries = HashMap::default();
+    let zip_fs = ZipFS::new(reader).unwrap();
 
-        let zip_fs = ZipFS::new(reader).unwrap();
+    let mut root = String::from(".");
 
-        let mut root = String::from(".");
+    let mut next = root.clone();
 
-        let mut next = root.clone();
+    for _ in 0..2 {
+        let dirs = zip_fs.read_dir(next.as_str()).unwrap().flatten();
 
-        for _ in 0..2 {
-            let dirs = zip_fs.read_dir(next.as_str()).unwrap().flatten();
-
-            for dir in dirs {
-                let path = dir.path.clone();
-                if path.ends_with(&format!("{}.ts", main).to_string()) {
-                    entries.insert(path.to_str().unwrap().to_string(), FileName::Real(path));
-                    break;
-                }
-                else {
-                    next = dir.path.to_str().unwrap().to_string();
-                }
-            }
-
-            if entries.len() == 1 {
+        for dir in dirs {
+            let path = dir.path.clone();
+            if path.ends_with(&format!("{}.ts", main).to_string()) {
+                entries.insert(path.to_str().unwrap().to_string(), FileName::Real(path));
                 break;
             }
             else {
-                root = next.clone();
+                next = dir.path.to_str().unwrap().to_string();
             }
         }
 
-        let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(Box::new(TsFileLoader::<R>::new(
-            zip_fs,
-            Path::new(&root).to_path_buf()
-        )), FilePathMapping::default()));
-
-        let globals = Globals::default();
-
-        let mut bundler = Bundler::new(
-            &globals,
-            cm.clone(),
-            TsModuleLoad { cm: cm.clone() },
-            PathResolve { cm: cm.clone() },
-            bundler::Config {
-                require: false,
-                disable_inliner: true,
-                external_modules: Default::default(),
-                disable_fixer: false,
-                disable_hygiene: false,
-                disable_dce: false,
-                module: ModuleType::Iife,
-            },
-            Box::new(Noop),
-        );
-
-        let mut bundles = bundler.bundle(entries).unwrap();
-
-        let mut buf = vec![];
-
-        let mut emitter = Emitter {
-            cfg: codegen::Config::default(),
-            cm: cm.clone(),
-            comments: None,
-            wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
-        };
-
-        emitter.emit_module(&bundles.pop().unwrap().module).unwrap();
-
-        let code = String::from_utf8(buf).unwrap();
-
-        println!("code: {}", code);
-
-        Self { code }
+        if entries.len() == 1 {
+            break;
+        }
+        else {
+            root = next.clone();
+        }
     }
+
+    let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(Box::new(TsFileLoader::<R>::new(
+        zip_fs,
+        Path::new(&root).to_path_buf()
+    )), FilePathMapping::default()));
+
+    let globals = Globals::default();
+
+    let mut bundler = Bundler::new(
+        &globals,
+        cm.clone(),
+        TsModuleLoad { cm: cm.clone() },
+        PathResolve { cm: cm.clone() },
+        bundler::Config {
+            require: false,
+            disable_inliner: true,
+            external_modules: Default::default(),
+            disable_fixer: false,
+            disable_hygiene: false,
+            disable_dce: false,
+            module: ModuleType::Iife,
+        },
+        Box::new(Noop),
+    );
+
+    let mut bundles = bundler.bundle(entries).unwrap();
+
+    let mut buf = vec![];
+
+    let mut emitter = Emitter {
+        cfg: codegen::Config::default().with_minify(true),
+        cm: cm.clone(),
+        comments: None,
+        wr: JsWriter::new(cm.clone(), "\n", &mut buf, None),
+    };
+
+    emitter.emit_module(&bundles.pop().unwrap().module).unwrap();
+
+    let code = String::from_utf8(buf).unwrap();
+
+    println!("code: {}", code);
+
+    REPOSITORY.save_script(code);
 }

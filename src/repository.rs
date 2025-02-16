@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub static REPOSITORY: LazyLock<Repository> = LazyLock::new(|| { Repository::new() });
 
 const COLLECTION_KEY: &str = "collection";
+const SCRIPT_KEY: &str = "script";
 
 pub struct Repository {
     env: Env,
@@ -29,7 +30,7 @@ impl Repository {
     pub fn get(&self, collection: String, id: String) -> String {
         let mut wtxn = self.env.write_txn().unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
-        let data = self.database.get(&mut wtxn, &key).unwrap().unwrap().to_string();
+        let data = self.database.get(&mut wtxn, &key).unwrap().expect("Item not found").to_string();
         wtxn.commit().unwrap();
         data
     }
@@ -71,6 +72,19 @@ impl Repository {
         let mut wtxn = self.env.write_txn().unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
         self.database.delete(&mut wtxn, &key).unwrap();
+        wtxn.commit().unwrap();
+    }
+
+    pub fn script(&self) -> String {
+        let mut wtxn = self.env.write_txn().unwrap();
+        let data = self.database.get(&mut wtxn, SCRIPT_KEY).unwrap().expect("Script not found").to_string();
+        wtxn.commit().unwrap();
+        data
+    }
+
+    pub fn save_script(&self, code: String) {
+        let mut wtxn = self.env.write_txn().unwrap();
+        self.database.put(&mut wtxn, SCRIPT_KEY, &code).unwrap();
         wtxn.commit().unwrap();
     }
 }

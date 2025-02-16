@@ -12,7 +12,7 @@ use repository::REPOSITORY;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, sync::mpsc};
-use crate::typescript::ts_transpiler::TsTranspiler;
+use crate::typescript::ts_transpiler::ts_transpiler;
 
 #[derive(Debug, MultipartForm)]
 struct UploadScript {
@@ -72,6 +72,7 @@ async fn query(
             result,
         })
         .unwrap();
+
     HttpResponse::Ok()
         .content_type("application/json")
         .body(receiver.recv().unwrap())
@@ -82,8 +83,8 @@ async fn upload_script(
     path: web::Path<String>,
     MultipartForm(form): MultipartForm<UploadScript>,
 ) -> impl Responder {
-    let ts = TsTranspiler::new(form.script.file, path.into_inner());
-    HttpResponse::Ok().body(ts.code)
+    ts_transpiler(form.script.file, path.into_inner());
+    HttpResponse::Ok()
 }
 
 #[actix_web::main]
