@@ -1,12 +1,11 @@
 use crate::typescript::path_resolve::PathResolve;
-use crate::typescript::ts_load::TsLoad;
+use crate::typescript::ts_module_load::TsModuleLoad;
 use std::collections::HashMap;
-use std::io;
 use std::io::{Read, Seek};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::rc::Rc;
 use swc_core::bundler::{Bundler, Hook, ModuleRecord, ModuleType};
-use swc_core::common::{FileLoader, FileName, FilePathMapping, Span};
+use swc_core::common::{FileName, FilePathMapping, Span};
 use swc_core::ecma::codegen;
 use swc_core::ecma::visit::swc_ecma_ast::KeyValueProp;
 use swc_core::{bundler, common::{
@@ -14,6 +13,7 @@ use swc_core::{bundler, common::{
 }, ecma::codegen::{text_writer::JsWriter, Emitter}};
 use virtual_filesystem::FileSystem;
 use virtual_filesystem::zip_fs::ZipFS;
+use crate::typescript::ts_file_loader::TsFileLoader;
 
 struct Noop;
 
@@ -25,32 +25,6 @@ impl Hook for Noop {
 
 pub struct TsTranspiler {
     pub code: String,
-}
-
-pub struct TsFileLoader<R: Read + Seek> {
-    zip_fs: ZipFS<R>,
-    root: PathBuf
-}
-
-impl <R: Read + Seek> FileLoader for TsFileLoader<R> {
-    fn file_exists(&self, path: &Path) -> bool {
-        self.zip_fs.exists(self.root.join(path).to_str().unwrap()).unwrap()
-    }
-
-    fn abs_path(&self, path: &Path) -> Option<PathBuf> {
-        Some(path.to_path_buf())
-    }
-
-    fn read_file(&self, path: &Path) -> io::Result<String> {
-        match self.zip_fs.open_file(self.root.join(path).to_str().unwrap()) {
-            Ok(mut file) => {
-                let mut content = String::new();
-                file.read_to_string(&mut content)?;
-                Ok(content)
-            },
-            _ => Ok(String::new()),
-        }
-    }
 }
 
 impl TsTranspiler {
@@ -85,17 +59,17 @@ impl TsTranspiler {
             }
         }
 
-        let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(Box::new(TsFileLoader::<R> {
+        let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(Box::new(TsFileLoader::<R>::new(
             zip_fs,
-            root: Path::new(&root).to_path_buf()
-        }), FilePathMapping::default()));
+            Path::new(&root).to_path_buf()
+        )), FilePathMapping::default()));
 
         let globals = Globals::default();
 
         let mut bundler = Bundler::new(
             &globals,
             cm.clone(),
-            TsLoad { cm: cm.clone() },
+            TsModuleLoad { cm: cm.clone() },
             PathResolve { cm: cm.clone() },
             bundler::Config {
                 require: false,

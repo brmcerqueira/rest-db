@@ -13,11 +13,11 @@ use swc_core::ecma::transforms::base::fixer::fixer;
 use swc_core::ecma::visit::FoldWith;
 use crate::typescript::call_function_with_context_transformer::CallFunctionWithContextTransformer;
 
-pub struct TsLoad {
+pub struct TsModuleLoad {
     pub cm: Rc<SourceMap>,
 }
 
-impl Load for TsLoad {
+impl Load for TsModuleLoad {
     fn load(&self, file_name: &FileName) -> Result<ModuleData, anyhow::Error> {
         let fm = match file_name {
             FileName::Real(path) => self.cm.load_file(path)?,

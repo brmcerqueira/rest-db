@@ -6,6 +6,7 @@ use std::{
     },
     thread,
 };
+use std::string::ToString;
 use v8::{
     json, new_default_platform, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
     Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value,
@@ -16,7 +17,7 @@ use crate::{
     stages::global_functions, utils::get_function,
 };
 
-pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| QueryEngine::new());
+pub static QUERY_ENGINE: LazyLock<QueryEngine> = LazyLock::new(|| QueryEngine::new("".to_string()));
 
 pub struct QueryEngineCall {
     pub name: String,
@@ -29,10 +30,8 @@ pub struct QueryEngine {
 }
 
 impl QueryEngine {
-    fn new() -> Self {
+    fn new(code: String) -> Self {
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
-
-        let code = "";
 
         thread::spawn(move || {
             let platform = new_default_platform(0, false).make_shared();
