@@ -92,9 +92,5 @@ pub fn ts_transpiler<R: Read + Seek + Send + 'static>(reader: R, main: String) {
 
     emitter.emit_module(&bundles.pop().unwrap().module).unwrap();
 
-    let code = String::from_utf8(buf).unwrap();
-
-    println!("code: {}", code);
-
-    REPOSITORY.save_script(code);
+    REPOSITORY.save_script(String::from_utf8(buf).unwrap());
 }
