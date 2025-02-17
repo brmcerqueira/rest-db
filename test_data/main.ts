@@ -5,7 +5,7 @@ export function queryUser(args: { text: string }) {
     $filter(user => user.name.includes(args.text));
     $test()
     $lookup("user", (item, result) => item.test2 = result, (root) => {
-        $filter(user => root.$id == user.$id);
+        $filter(user => root.name == user.name);
         $assign(() => {
             return {raw: $sum((item) => 10) };
         });

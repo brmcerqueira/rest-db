@@ -1,6 +1,5 @@
-use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Integer, Local, Number, ReturnValue};
-
 use crate::utils::{bind, get_function};
+use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Integer, Local, ReturnValue};
 
 pub fn sum(
     scope: &mut HandleScope,
@@ -48,5 +47,5 @@ fn wrapper(
         .unwrap()
         .number_value(scope)
         .unwrap();
-    return_value.set(Number::new(scope, accumulator + current_value).into());
+    return_value.set_double(accumulator + current_value);
 }

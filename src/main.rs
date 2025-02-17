@@ -9,7 +9,6 @@ use actix_multipart::form::MultipartForm;
 use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
 use query_engine::{QueryEngineCall, QUERY_ENGINE};
 use repository::REPOSITORY;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, sync::mpsc};
 use v8::new_default_platform;
@@ -20,11 +19,6 @@ use crate::typescript::ts_transpiler::ts_transpiler;
 struct UploadScript {
     #[multipart(limit = "100MB")]
     script: TempFile,
-}
-
-#[derive(Deserialize, Serialize)]
-struct CollectionCreate {
-    id: String,
 }
 
 #[get("/collection/{name}/{id}")]
@@ -39,7 +33,7 @@ async fn collection_get(path: web::Path<(String, String)>) -> impl Responder {
 #[put("/collection/{name}")]
 async fn collection_create(json: web::Json<Value>, path: web::Path<String>) -> impl Responder {
     let id = REPOSITORY.create(path.into_inner(), json.into_inner());
-    HttpResponse::Ok().json(CollectionCreate { id })
+    HttpResponse::Ok().json(id)
 }
 
 #[post("/collection/{name}/{id}")]
