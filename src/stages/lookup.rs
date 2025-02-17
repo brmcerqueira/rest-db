@@ -1,6 +1,6 @@
-use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
+use v8::{json, undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
-use crate::utils::collection_load;
+use crate::utils::{collection_load, copy};
 
 pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array: Local<Array> = args.this().try_into().unwrap();
@@ -21,12 +21,14 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retur
 
     let recv = undefined(scope);
 
-    let length = array.length();
+    for index in 0..array.length() {
+        let lookup_array = Array::new(scope, 0);
 
-    for i in 0..length {
-        let lookup_array = origin_array.clone();
+        copy(scope, origin_array, lookup_array);
 
-        let item = array.get_index(scope, i).unwrap();
+        println!("lookup_array: {}", json::stringify(scope, lookup_array.into()).unwrap().to_rust_string_lossy(scope));
+
+        let item = array.get_index(scope, index).unwrap();
 
         if let Some(function) = function {
             function.call(scope, lookup_array.into(), &[item]).unwrap();

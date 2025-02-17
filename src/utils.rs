@@ -40,3 +40,10 @@ pub fn collection_load(scope: &mut HandleScope, collection: String, array: Local
         array.set_index(scope, array.length(), value);
     });
 }
+
+pub fn copy(scope: &mut HandleScope, origin_array: Local<Array>, array: Local<Array>) {
+    for index in 0..origin_array.length() {
+        let value = origin_array.get_index(scope, index).unwrap();
+        array.set_index(scope, index, value);
+    }
+}
