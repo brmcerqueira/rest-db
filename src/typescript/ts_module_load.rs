@@ -1,4 +1,4 @@
-use crate::typescript::call_function_with_context_transformer::CallFunctionWithContextTransformer;
+use crate::typescript::query_engine_transformer::QueryEngineTransformer;
 use std::rc::Rc;
 use swc_core::bundler::{Load, ModuleData};
 use swc_core::common::errors::{ColorConfig, Handler};
@@ -45,7 +45,7 @@ impl Load for TsModuleLoad {
                     .apply(fixer(None))
                     .expect_module();
 
-                module.visit_mut_with(&mut CallFunctionWithContextTransformer);
+                module.visit_mut_with(&mut QueryEngineTransformer);
 
                 module
             })
