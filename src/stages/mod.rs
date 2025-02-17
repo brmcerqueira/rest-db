@@ -2,6 +2,7 @@ mod filter;
 mod collection;
 mod lookup;
 mod project;
+mod assign;
 
 use v8::{FunctionTemplate, HandleScope, Local, ObjectTemplate};
 
@@ -22,5 +23,6 @@ global!(
     ["$filter", filter::filter],
     ["$collection", collection::collection],
     ["$lookup", lookup::lookup],
-    ["$project", project::project]
+    ["$project", project::project],
+    ["$assign", assign::assign]
 );
