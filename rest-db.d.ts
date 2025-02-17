@@ -14,4 +14,4 @@ declare function $group<T = any, TKey = any, TResult = any>(key: (T) => TKey, tr
 
 declare function $result<T = any>(): T[];
 
-declare function $sum<T = any, TResult = any>(expression: (T) => TResult): TResult;
+declare function $sum<T = any, TResult = any>(callback: (T) => TResult): TResult;

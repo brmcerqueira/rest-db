@@ -3,6 +3,8 @@ mod collection;
 mod lookup;
 mod project;
 mod assign;
+mod result;
+mod sum;
 
 use v8::{FunctionTemplate, HandleScope, Local, ObjectTemplate};
 
@@ -24,5 +26,7 @@ global!(
     ["$collection", collection::collection],
     ["$lookup", lookup::lookup],
     ["$project", project::project],
-    ["$assign", assign::assign]
+    ["$assign", assign::assign],
+    ["$result", result::result],
+    ["$sum", sum::sum]
 );
