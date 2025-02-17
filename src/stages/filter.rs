@@ -7,7 +7,9 @@ pub fn filter(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retur
 
     let result: Local<Array> = get_function(scope, array.into(), "filter")
         .call(scope, array.into(), &[args.get(0)])
-        .unwrap().try_into().unwrap();
+        .unwrap()
+        .try_into()
+        .unwrap();
 
     array_update(scope, array, result);
 }
