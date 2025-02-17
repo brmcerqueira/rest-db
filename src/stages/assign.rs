@@ -1,4 +1,4 @@
-use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
+use v8::{Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
 use crate::utils::get_function;
 
@@ -15,12 +15,10 @@ pub fn assign(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retur
 
     let length = array.length();
 
-    let recv = undefined(scope);
-
     for i in 0..length {
         let item = array.get_index(scope, i).unwrap();
 
-        let result = function.call(scope, recv.into(), &[item]).unwrap();
+        let result = function.call(scope, array.into(), &[item]).unwrap();
 
         assign_function.call(scope, object.into(), &[item, result]);
     }
