@@ -1,9 +1,6 @@
-use v8::{
-    json, undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, Object,
-    ReturnValue, String,
-};
+use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
-use crate::{repository::REPOSITORY, utils::get_function};
+use crate::utils::collection_load;
 
 pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array: Local<Array> = args.this().try_into().unwrap();
@@ -14,57 +11,38 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retur
         .unwrap()
         .to_rust_string_lossy(scope);
 
-    let lookup_array = Array::new(scope, 0);
+    let origin_array = Array::new(scope, 0);
 
-    REPOSITORY.get_all(collection, |item| {
-        let value = String::new(scope, &item).unwrap().into();
-        let value = json::parse(scope, value).unwrap().into();
-        lookup_array.set_index(scope, lookup_array.length(), value);
-    });
+    collection_load(scope, collection, origin_array);
+
+    let function: Option<Local<Function>> = if args.length() == 3 {
+        Some(args.get(2).try_into().unwrap())
+    } else { None };
 
     let recv = undefined(scope);
 
     let length = array.length();
 
     for i in 0..length {
+        let lookup_array = origin_array.clone();
+
         let item = array.get_index(scope, i).unwrap();
 
-        let this = Object::new(scope);
-
-        let key = v8::String::new(scope, "item").unwrap();
-        this.set(scope, key.into(), item);
-
-        let key = v8::String::new(scope, "callback").unwrap();
-        this.set(scope, key.into(), args.get(2));
-
-        let wrapper_function = Function::new(scope, wrapper).unwrap();
-
-        let bind = get_function(scope, wrapper_function.into(), "bind");
-
-        let wrapper_function = bind
-            .call(scope, wrapper_function.into(), &[this.into()])
-            .unwrap();
-
-        let result = get_function(scope, lookup_array.into(), "filter")
-            .call(scope, lookup_array.into(), &[wrapper_function.into()])
-            .unwrap();
+        if let Some(function) = function {
+            function.call(scope, lookup_array.into(), &[item]).unwrap();
+        }
 
         let destiny = args.get(1);
 
-        if destiny.is_string() {  
-            item.to_object(scope).unwrap().set(scope, destiny, result);
+        if destiny.is_string() {
+            item.to_object(scope)
+                .unwrap()
+                .set(scope, destiny, lookup_array.into());
         } else {
             let function: Local<Function> = destiny.try_into().unwrap();
-            function.call(scope, recv.into(), &[item, result]).unwrap();
+            function
+                .call(scope, recv.into(), &[item, lookup_array.into()])
+                .unwrap();
         }
     }
-}
-
-fn wrapper(scope: &mut HandleScope, args: FunctionCallbackArguments, mut return_value: ReturnValue) {
-    let key = v8::String::new(scope, "item").unwrap();
-    let item = args.this().get(scope, key.into()).unwrap();
-    let key = v8::String::new(scope, "callback").unwrap();
-    let callback: Local<Function> = args.this().get(scope, key.into()).unwrap().try_into().unwrap();
-    let recv = undefined(scope);
-    return_value.set(callback.call(scope, recv.into(), &[item, args.get(0)]).unwrap());
 }

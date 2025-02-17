@@ -1,6 +1,6 @@
-use v8::{json, Array, FunctionCallbackArguments, HandleScope, Local, ReturnValue, String};
+use v8::{Array, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
-use crate::repository::REPOSITORY;
+use crate::utils::collection_load;
 
 pub fn collection(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array: Local<Array> = args.this().try_into().unwrap();
@@ -11,9 +11,5 @@ pub fn collection(scope: &mut HandleScope, args: FunctionCallbackArguments, _: R
         .unwrap()
         .to_rust_string_lossy(scope);
 
-    REPOSITORY.get_all(collection, |item| {
-        let value = String::new(scope, &item).unwrap().into();
-        let value = json::parse(scope, value).unwrap().into();
-        array.set_index(scope, array.length(), value);
-    });
+    collection_load(scope, collection, array);
 }

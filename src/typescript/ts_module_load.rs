@@ -1,17 +1,17 @@
+use crate::typescript::call_function_with_context_transformer::CallFunctionWithContextTransformer;
 use std::rc::Rc;
-use swc_core::common::{FileName, Mark, SourceMap};
 use swc_core::bundler::{Load, ModuleData};
-use swc_core::ecma::parser::{Parser, Syntax};
-use swc_core::ecma::parser::lexer::Lexer;
-use swc_core::ecma::visit::swc_ecma_ast::{EsVersion, Program};
-use swc_core::common::input::StringInput;
 use swc_core::common::errors::{ColorConfig, Handler};
+use swc_core::common::input::StringInput;
+use swc_core::common::{FileName, Mark, SourceMap};
+use swc_core::ecma::parser::lexer::Lexer;
+use swc_core::ecma::parser::{Parser, Syntax};
+use swc_core::ecma::transforms::base::fixer::fixer;
+use swc_core::ecma::transforms::base::hygiene::hygiene;
 use swc_core::ecma::transforms::base::resolver;
 use swc_core::ecma::transforms::typescript::strip;
-use swc_core::ecma::transforms::base::hygiene::hygiene;
-use swc_core::ecma::transforms::base::fixer::fixer;
-use swc_core::ecma::visit::FoldWith;
-use crate::typescript::call_function_with_context_transformer::CallFunctionWithContextTransformer;
+use swc_core::ecma::visit::swc_ecma_ast::{EsVersion, Program};
+use swc_core::ecma::visit::VisitMutWith;
 
 pub struct TsModuleLoad {
     pub cm: Rc<SourceMap>,
@@ -37,13 +37,19 @@ impl Load for TsModuleLoad {
             .map(|module| {
                 let unresolved_mark = Mark::new();
                 let top_level_mark = Mark::new();
-                Program::Module(module)
+
+                let mut module = Program::Module(module)
                     .apply(resolver(unresolved_mark, top_level_mark, true))
                     .apply(strip(unresolved_mark, top_level_mark))
                     .apply(hygiene())
-                    .apply(fixer(None)).expect_module()
+                    .apply(fixer(None))
+                    .expect_module();
+
+                module.visit_mut_with(&mut CallFunctionWithContextTransformer);
+
+                module
             })
-            .map(|module| module.fold_with(&mut CallFunctionWithContextTransformer)).unwrap();
+            .unwrap();
 
         Ok(ModuleData {
             fm,

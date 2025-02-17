@@ -97,7 +97,7 @@ pub fn ts_transpiler<R: Read + Seek + Send + 'static>(reader: R, main: String) {
 
     print!("Transpiled: {}", code);
 
-    refresh_query_engine(code.clone());
+    REPOSITORY.save_script(code.clone());
 
-    REPOSITORY.save_script(code);
+    refresh_query_engine(code);
 }

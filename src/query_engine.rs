@@ -25,6 +25,7 @@ pub fn refresh_query_engine(code: String) {
     *lock = QueryEngine::new(code);
 }
 
+
 pub struct QueryEngineCall {
     pub name: String,
     pub args: HashMap<String, String>,
