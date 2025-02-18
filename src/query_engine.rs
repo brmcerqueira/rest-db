@@ -60,24 +60,24 @@ impl QueryEngine {
                 .run(context_scope).unwrap().to_object(context_scope).unwrap();
 
             for item in receiver {
-                let try_catch = &mut TryCatch::new(context_scope);
-
-                let args = Object::new(try_catch);
+                let args = Object::new(context_scope);
 
                 for (key, value) in item.args.iter() {
-                    let local_key = v8::String::new(try_catch, key).unwrap();
-                    let local_value = Self::parse(try_catch, value);
-                    args.set(try_catch, local_key.into(), local_value);
+                    let local_key = v8::String::new(context_scope, key).unwrap();
+                    let local_value = Self::parse(context_scope, value);
+                    args.set(context_scope, local_key.into(), local_value);
                 }
 
-                let array = Array::new(try_catch, 0).into();
+                let array = Array::new(context_scope, 0).into();
 
-                let function = get_function(try_catch, global, &item.name);
+                let function = get_function(context_scope, global, &item.name);
 
                 if let Err(err) = function {
                     item.result.send(err.to_string()).unwrap();
                 }
                 else {
+                    let try_catch = &mut TryCatch::new(context_scope);
+
                     function.unwrap().call(
                         try_catch,
                         array,
