@@ -1,8 +1,9 @@
-mod filter;
+mod assign;
 mod collection;
+mod filter;
+mod group;
 mod lookup;
 mod project;
-mod assign;
 mod result;
 mod sum;
 
@@ -27,6 +28,7 @@ global!(
     ["$lookup", lookup::lookup],
     ["$project", project::project],
     ["$assign", assign::assign],
+    ["$group", group::group],
     ["$result", result::result],
     ["$sum", sum::sum]
 );
