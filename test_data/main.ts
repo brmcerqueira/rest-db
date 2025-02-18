@@ -7,7 +7,10 @@ export function queryUser(args: { text: string }) {
     $lookup("user", (item, result) => item.test2 = result, (root) => {
         $filter(user => root.name == user.name);
         $assign(() => {
-            return {raw: $sum((item) => 10) };
+            return {raw: true };
         });
     });
+    $group(user => ({name: user.name, $id: user.$id}), (key) => {
+        return {key, raw: $sum((item) => 10), data: $result() };
+    })
 }
