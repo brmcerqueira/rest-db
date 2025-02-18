@@ -1,9 +1,9 @@
 use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
-use crate::utils::{collection_load, copy};
+use crate::utils::{collection_load, copy, out_array};
 
 pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
-    let array: Local<Array> = args.this().try_into().unwrap();
+    let array = out_array(scope, &args).unwrap();
 
     let collection = args
         .get(0)
@@ -17,7 +17,9 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retur
 
     let function: Option<Local<Function>> = if args.length() == 3 {
         Some(args.get(2).try_into().unwrap())
-    } else { None };
+    } else {
+        None
+    };
 
     let recv = undefined(scope);
 

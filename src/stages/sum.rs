@@ -1,12 +1,14 @@
-use crate::utils::{bind, get_function};
-use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Integer, Local, ReturnValue};
+use crate::utils::{bind, get_function, out_array};
+use v8::{
+    undefined, Function, FunctionCallbackArguments, HandleScope, Integer, Local, ReturnValue,
+};
 
 pub fn sum(
     scope: &mut HandleScope,
     args: FunctionCallbackArguments,
     mut return_value: ReturnValue,
 ) {
-    let array: Local<Array> = args.this().try_into().unwrap();
+    let array = out_array(scope, &args).unwrap();
 
     let initial_value = Integer::new(scope, 0);
 
@@ -15,7 +17,8 @@ pub fn sum(
     let wrapper_function = bind(scope, wrapper_function, args.get(0)).unwrap();
 
     return_value.set(
-        get_function(scope, array.into(), "reduce").unwrap()
+        get_function(scope, array.into(), "reduce")
+            .unwrap()
             .call(
                 scope,
                 array.into(),

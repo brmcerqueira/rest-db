@@ -1,11 +1,10 @@
-use v8::{json, Array, Exception, Function, HandleScope, Integer, Local, Object, Value};
+use v8::{json, Array, Exception, Function, FunctionCallbackArguments, HandleScope, Integer, Local, Object, Value};
 use crate::repository::REPOSITORY;
 
 pub fn get_function<'s, 'a>(scope: &mut HandleScope<'s>, object: Local<'a, Object>, name: &str) -> Result<Local<'a, Function>, String> where 's : 'a {
-    let function_name = v8::String::new(scope, name)
-        .ok_or(throw(scope, &*format!("failed to convert Rust string to javascript string -> {name}")));
+    let function_name = v8::String::new(scope, name).unwrap();
 
-    let function = object.get(scope, function_name?.into()).map(|value| {
+    let function = object.get(scope, function_name.into()).map(|value| {
         if value.is_undefined() {
             Err(throw(scope, &*format!("could not find function -> {name}")))
         }
@@ -17,7 +16,11 @@ pub fn get_function<'s, 'a>(scope: &mut HandleScope<'s>, object: Local<'a, Objec
     Ok(function?.try_into().unwrap())
 }
 
-fn throw(scope: &mut HandleScope, message: &str) -> String {
+pub fn out_array<'s, 'a>(scope: &mut HandleScope, args: &FunctionCallbackArguments<'a>) -> Result<Local<'a, Array>, String> where 's : 'a {
+    args.this().try_into().map_err(|_| throw(scope, "failed to found a context"))
+}
+
+pub fn throw(scope: &mut HandleScope, message: &str) -> String {
     let value = v8::String::new(scope, message).unwrap();
     let exception = Exception::error(scope, value);
     scope.throw_exception(exception);

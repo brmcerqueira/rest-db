@@ -1,9 +1,9 @@
-use v8::{Array, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
+use v8::{FunctionCallbackArguments, HandleScope, ReturnValue};
 
-use crate::utils::collection_load;
+use crate::utils::{collection_load, out_array};
 
 pub fn collection(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
-    let array: Local<Array> = args.this().try_into().unwrap();
+    let array = out_array(scope, &args).unwrap();
 
     let collection = args
         .get(0)

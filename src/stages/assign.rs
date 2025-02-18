@@ -1,15 +1,21 @@
-use v8::{Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
+use v8::{Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
-use crate::utils::get_function;
+use crate::utils::{get_function, out_array};
 
 pub fn assign(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
-    let array: Local<Array> = args.this().try_into().unwrap();
+    let array = out_array(scope, &args).unwrap();
 
     let function: Local<Function> = args.get(0).try_into().unwrap();
 
     let object_name = v8::String::new(scope, "Object").unwrap();
 
-    let object = scope.get_current_context().global(scope).get(scope, object_name.into()).unwrap().to_object(scope).unwrap();
+    let object = scope
+        .get_current_context()
+        .global(scope)
+        .get(scope, object_name.into())
+        .unwrap()
+        .to_object(scope)
+        .unwrap();
 
     let assign_function = get_function(scope, object, "assign").unwrap();
 
