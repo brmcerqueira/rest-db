@@ -1,19 +1,32 @@
-use v8::{json, Array, Function, HandleScope, Integer, Local, Object, Value};
+use v8::{json, Array, Exception, Function, HandleScope, Integer, Local, Object, Value};
 use crate::repository::REPOSITORY;
 
-pub fn get_function<'s, 'a>(scope: &mut HandleScope<'s>, object: Local<'a, Object>, name: &str) -> Local<'a, Function> where 's : 'a {
+pub fn get_function<'s, 'a>(scope: &mut HandleScope<'s>, object: Local<'a, Object>, name: &str) -> Result<Local<'a, Function>, String> where 's : 'a {
     let function_name = v8::String::new(scope, name)
-    .expect("failed to convert Rust string to javascript string");
+        .ok_or(throw(scope, &*format!("failed to convert Rust string to javascript string -> {name}")));
 
-    let function = object.get(scope, function_name.into())
-    .expect(&*format!("could not find function {name}"));
+    let function = object.get(scope, function_name?.into()).map(|value| {
+        if value.is_undefined() {
+            Err(throw(scope, &*format!("could not find function -> {name}")))
+        }
+        else {
+            Ok(value)
+        }
+    }).unwrap();
 
-    function.try_into().unwrap()
+    Ok(function?.try_into().unwrap())
 }
 
-pub fn bind<'s, 'a>(scope: &mut HandleScope<'s>, function: Local<'a, Function>, this: Local<'a, Value>) -> Local<'a, Function> where 's : 'a {
-    let bind = get_function(scope, function.into(), "bind");
-    bind.call(scope, function.into(), &[this]).unwrap().try_into().unwrap()
+fn throw(scope: &mut HandleScope, message: &str) -> String {
+    let value = v8::String::new(scope, message).unwrap();
+    let exception = Exception::error(scope, value);
+    scope.throw_exception(exception);
+    message.to_string()
+}
+
+pub fn bind<'s, 'a>(scope: &mut HandleScope<'s>, function: Local<'a, Function>, this: Local<'a, Value>) -> Result<Local<'a, Function>, String> where 's : 'a {
+    let bind = get_function(scope, function.into(), "bind")?;
+    Ok(bind.call(scope, function.into(), &[this]).unwrap().try_into().unwrap())
 }
 
 pub fn array_update(scope: &mut HandleScope, array: Local<Array>, new_data: Local<Array>) {

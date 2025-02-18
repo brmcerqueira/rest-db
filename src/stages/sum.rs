@@ -12,10 +12,10 @@ pub fn sum(
 
     let wrapper_function = Function::new(scope, wrapper).unwrap();
 
-    let wrapper_function = bind(scope, wrapper_function, args.get(0));
+    let wrapper_function = bind(scope, wrapper_function, args.get(0)).unwrap();
 
     return_value.set(
-        get_function(scope, array.into(), "reduce")
+        get_function(scope, array.into(), "reduce").unwrap()
             .call(
                 scope,
                 array.into(),

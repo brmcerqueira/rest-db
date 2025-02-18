@@ -11,7 +11,7 @@ pub fn assign(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retur
 
     let object = scope.get_current_context().global(scope).get(scope, object_name.into()).unwrap().to_object(scope).unwrap();
 
-    let assign_function = get_function(scope, object, "assign");
+    let assign_function = get_function(scope, object, "assign").unwrap();
 
     let length = array.length();
 

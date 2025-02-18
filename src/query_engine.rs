@@ -1,17 +1,9 @@
 use std::sync::Mutex;
-use std::{
-    collections::HashMap,
-    sync::{
-        mpsc::{self, Sender},
-        LazyLock,
-    },
-    thread,
-};
-use v8::{
-    json, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope,
-    Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, Value
-    ,
-};
+use std::{collections::HashMap, sync::{
+    mpsc::{self, Sender},
+    LazyLock,
+}, thread};
+use v8::{json, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope, Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, TryCatch, Value};
 
 use crate::repository::REPOSITORY;
 use crate::{
@@ -42,56 +34,72 @@ impl QueryEngine {
 
         let (call, receiver) = mpsc::channel::<QueryEngineCall>();
 
-        thread::spawn(move || {
+        thread::spawn(move || -> Result<(), String> {
             let isolate = &mut Isolate::new(Default::default());
 
-            let mut isolate_scope = HandleScope::new(isolate);
+            let isolate_scope = &mut HandleScope::new(isolate);
 
-            let global_template = ObjectTemplate::new(&mut isolate_scope);
+            let global_template = ObjectTemplate::new(isolate_scope);
 
-            global_functions(&mut isolate_scope, global_template);
+            global_functions(isolate_scope, global_template);
 
             let context = Context::new(
-                &mut isolate_scope,
+                isolate_scope,
                 ContextOptions {
                     global_template: Some(global_template),
                     ..Default::default()
                 },
             );
 
-            let mut context_scope = ContextScope::new(&mut isolate_scope, context);
+            let context_scope = &mut ContextScope::new(isolate_scope, context);
 
-            let code = v8::String::new(&mut context_scope, &code).unwrap();
+            let code = v8::String::new(context_scope, &code).unwrap();
 
-            let result = Script::compile(&mut context_scope, code, None)
+            let global = Script::compile(context_scope, code, None)
                 .unwrap()
-                .run(&mut context_scope).unwrap().to_object(&mut context_scope).unwrap();
+                .run(context_scope).unwrap().to_object(context_scope).unwrap();
 
             for item in receiver {
-                let args = Object::new(&mut context_scope);
+                let try_catch = &mut TryCatch::new(context_scope);
+
+                let args = Object::new(try_catch);
 
                 for (key, value) in item.args.iter() {
-                    let local_key = v8::String::new(&mut context_scope, key).unwrap();
-                    let local_value = Self::parse(&mut context_scope, value);
-                    args.set(&mut context_scope, local_key.into(), local_value);
+                    let local_key = v8::String::new(try_catch, key).unwrap();
+                    let local_value = Self::parse(try_catch, value);
+                    args.set(try_catch, local_key.into(), local_value);
                 }
 
-                let array = Array::new(&mut context_scope, 0).into();
+                let array = Array::new(try_catch, 0).into();
 
-                get_function(&mut context_scope, result, &item.name).call(
-                    &mut context_scope,
-                    array,
-                    &[args.into()],
-                );
+                let function = get_function(try_catch, global, &item.name);
 
-                item.result
-                    .send(
-                        json::stringify(&mut context_scope, array)
-                            .unwrap()
-                            .to_rust_string_lossy(&mut context_scope),
-                    )
-                    .unwrap();
+                if let Err(err) = function {
+                    item.result.send(err.to_string()).unwrap();
+                }
+                else {
+                    function.unwrap().call(
+                        try_catch,
+                        array,
+                        &[args.into()],
+                    );
+
+                    if try_catch.has_caught() {
+                        let exception = try_catch.exception().unwrap();
+                        let message = exception.to_string(try_catch).unwrap();
+                        item.result.send(message.to_rust_string_lossy(try_catch)).unwrap();
+                    } else {
+                        item.result
+                            .send(
+                                json::stringify(try_catch, array)
+                                    .unwrap()
+                                    .to_rust_string_lossy(try_catch),
+                            )
+                            .unwrap();
+                    }
+                }
             }
+            Ok(())
         });
 
         QueryEngine { call }
