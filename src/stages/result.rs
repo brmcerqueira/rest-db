@@ -6,5 +6,7 @@ pub fn result(
     args: FunctionCallbackArguments,
     mut return_value: ReturnValue,
 ) {
-    return_value.set(out_array(scope, &args).unwrap().into());
+    if let Ok(array) = out_array(scope, &args) {
+        return_value.set(array.into());
+    }
 }

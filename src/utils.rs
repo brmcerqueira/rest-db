@@ -17,7 +17,12 @@ pub fn get_function<'s, 'a>(scope: &mut HandleScope<'s>, object: Local<'a, Objec
 }
 
 pub fn out_array<'s, 'a>(scope: &mut HandleScope, args: &FunctionCallbackArguments<'a>) -> Result<Local<'a, Array>, String> where 's : 'a {
-    args.this().try_into().map_err(|_| throw(scope, "failed to found a context"))
+    if args.this().is_array() {
+        Ok(args.this().try_into().unwrap())
+    }
+    else {
+        Err(throw(scope, "failed to found a context"))
+    }
 }
 
 pub fn throw(scope: &mut HandleScope, message: &str) -> String {
