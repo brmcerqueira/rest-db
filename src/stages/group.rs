@@ -12,15 +12,24 @@ pub fn group(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Return
 
     let mut map: HashMap<Local<Value>, Local<Array>> = HashMap::new();
 
-    let default = undefined(scope);
+    let undefined = undefined(scope);
 
     if key_function.is_some() {
+        let key_function = key_function.unwrap();
         for index in 0..array.length() {
-
+            let item = array.get_index(scope, index).unwrap();
+            let key = key_function.call(scope, undefined.into(), &[item.into()]).unwrap();
+            if map.contains_key(&key) {
+                let group_array = map.get(&key).unwrap();
+                group_array.set_index(scope, group_array.length(), item);
+            }
+            else {
+                map.insert(key, Array::new_with_elements(scope, &[item]));
+            }
         }
     }
     else {
-        map.insert(default.into(), array);
+        map.insert(undefined.into(), array);
     }
 
     clear(scope, array);
