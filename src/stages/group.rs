@@ -3,7 +3,7 @@ use v8::{
     undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue, Value,
 };
 
-use crate::utils::{clear, out_array};
+use crate::utils::{out_array, LocalArray};
 
 pub fn group(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array = out_array(&args).unwrap();
@@ -40,7 +40,7 @@ pub fn group(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Return
         map.insert(undefined.into(), array);
     }
 
-    clear(scope, array);
+    array.clear(scope);
 
     for item in map {
         let result = function

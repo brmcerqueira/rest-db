@@ -1,6 +1,6 @@
 use v8::{Array, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
-use crate::utils::{array_update, bind, get_function, out_array};
+use crate::utils::{bind, get_function, out_array, LocalArray};
 
 pub fn project(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array = out_array(&args).unwrap();
@@ -14,5 +14,5 @@ pub fn project(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retu
         .try_into()
         .unwrap();
 
-    array_update(scope, array, result);
+    array.array_update(scope, result);
 }

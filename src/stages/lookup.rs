@@ -1,6 +1,6 @@
 use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
-use crate::utils::{collection_load, copy, out_array};
+use crate::utils::{out_array, LocalArray};
 
 pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array = out_array(&args).unwrap();
@@ -13,7 +13,7 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retur
 
     let origin_array = Array::new(scope, 0);
 
-    collection_load(scope, collection, origin_array);
+    origin_array.collection_load(scope, collection);
 
     let function: Option<Local<Function>> = if args.length() == 3 {
         Some(args.get(2).try_into().unwrap())
@@ -26,7 +26,7 @@ pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: Retur
     for index in 0..array.length() {
         let lookup_array = Array::new(scope, 0);
 
-        copy(scope, origin_array, lookup_array);
+        lookup_array.copy(scope, origin_array);
 
         let item = array.get_index(scope, index).unwrap();
 

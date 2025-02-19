@@ -1,6 +1,6 @@
 use v8::{FunctionCallbackArguments, HandleScope, ReturnValue};
 
-use crate::utils::{array_update, get_function, out_array, throw_error};
+use crate::utils::{get_function, out_array, throw_error, LocalArray};
 
 pub fn filter(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     throw_error(root_scope, |scope| {
@@ -12,7 +12,7 @@ pub fn filter(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: 
             .try_into();
 
         if result.is_ok() {
-            array_update(scope, array, result.unwrap());
+            array.array_update(scope, result.unwrap());
         }
 
         Ok(())

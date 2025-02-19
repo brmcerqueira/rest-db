@@ -63,32 +63,42 @@ where
         .unwrap())
 }
 
-pub fn array_update(scope: &mut HandleScope, array: Local<Array>, new_data: Local<Array>) {
-    clear(scope, array);
+pub trait LocalArray {
+    fn array_update(&self, scope: &mut HandleScope, new_data: Local<Array>);
+    fn clear(&self, scope: &mut HandleScope);
+    fn collection_load(&self, scope: &mut HandleScope, collection: String);
+    fn copy(&self, scope: &mut HandleScope, origin_array: Local<Array>);
+}
 
-    for index in 0..new_data.length() {
-        let item = new_data.get_index(scope, index).unwrap();
-        array.set_index(scope, index, item);
+
+impl <'a> LocalArray for Local<'a, Array> {
+    fn array_update(&self, scope: &mut HandleScope, new_data: Local<Array>) {
+        let _ = &self.clear(scope);
+
+        for index in 0..new_data.length() {
+            let item = new_data.get_index(scope, index).unwrap();
+            let _ = &self.set_index(scope, index, item);
+        }
     }
-}
 
-pub fn clear(scope: &mut HandleScope, array: Local<Array>) {
-    let length = v8::String::new(scope, "length").unwrap();
-    let value = Integer::new(scope, 0);
-    array.set(scope, length.into(), value.into());
-}
+    fn clear(&self, scope: &mut HandleScope) {
+        let length = v8::String::new(scope, "length").unwrap();
+        let value = Integer::new(scope, 0);
+        let _ = &self.set(scope, length.into(), value.into());
+    }
 
-pub fn collection_load(scope: &mut HandleScope, collection: String, array: Local<Array>) {
-    REPOSITORY.get_all(collection, |item| {
-        let value = v8::String::new(scope, &item).unwrap().into();
-        let value = json::parse(scope, value).unwrap().into();
-        array.set_index(scope, array.length(), value);
-    });
-}
+    fn collection_load(&self, scope: &mut HandleScope, collection: String) {
+        REPOSITORY.get_all(collection, |item| {
+            let value = v8::String::new(scope, &item).unwrap().into();
+            let value = json::parse(scope, value).unwrap().into();
+            let _ = &self.set_index(scope, self.length(), value);
+        });
+    }
 
-pub fn copy(scope: &mut HandleScope, origin_array: Local<Array>, array: Local<Array>) {
-    for index in 0..origin_array.length() {
-        let value = origin_array.get_index(scope, index).unwrap();
-        array.set_index(scope, index, value);
+    fn copy(&self, scope: &mut HandleScope, origin_array: Local<Array>) {
+        for index in 0..origin_array.length() {
+            let value = origin_array.get_index(scope, index).unwrap();
+            let _ = &self.set_index(scope, index, value);
+        }
     }
 }

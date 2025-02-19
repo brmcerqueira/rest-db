@@ -1,6 +1,6 @@
 use v8::{FunctionCallbackArguments, HandleScope, ReturnValue};
 
-use crate::utils::{collection_load, out_array};
+use crate::utils::{out_array, LocalArray};
 
 pub fn collection(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array = out_array(&args).unwrap();
@@ -11,5 +11,5 @@ pub fn collection(scope: &mut HandleScope, args: FunctionCallbackArguments, _: R
         .unwrap()
         .to_rust_string_lossy(scope);
 
-    collection_load(scope, collection, array);
+    array.collection_load(scope, collection);
 }
