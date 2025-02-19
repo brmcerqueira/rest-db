@@ -1,6 +1,6 @@
-use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 use crate::local_array_extension::LocalArrayExtension;
 use crate::utils::out_array;
+use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 
 pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array = out_array(&args).unwrap();

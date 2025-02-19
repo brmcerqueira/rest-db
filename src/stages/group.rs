@@ -1,9 +1,9 @@
+use crate::local_array_extension::LocalArrayExtension;
+use crate::utils::out_array;
 use std::collections::HashMap;
 use v8::{
     undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue, Value,
 };
-use crate::local_array_extension::LocalArrayExtension;
-use crate::utils::out_array;
 
 pub fn group(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     let array = out_array(&args).unwrap();

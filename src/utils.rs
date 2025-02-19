@@ -1,4 +1,6 @@
-use v8::{Array, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object, Value};
+use v8::{
+    Array, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object, Value,
+};
 
 pub fn get_function<'s, 'a>(
     scope: &mut HandleScope<'s>,

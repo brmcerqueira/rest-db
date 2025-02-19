@@ -1,25 +1,14 @@
-use v8::{json, Array, HandleScope, Integer, Local};
 use crate::repository::REPOSITORY;
+use v8::{json, Array, HandleScope, Integer, Local};
 
 pub trait LocalArrayExtension {
-    fn array_update(&self, scope: &mut HandleScope, new_data: Local<Array>);
     fn clear(&self, scope: &mut HandleScope);
     fn set_length(&self, scope: &mut HandleScope, value: i32);
     fn collection_load(&self, scope: &mut HandleScope, collection: String);
     fn copy(&self, scope: &mut HandleScope, origin_array: Local<Array>);
 }
 
-impl <'a> LocalArrayExtension for Local<'a, Array> {
-
-    fn array_update(&self, scope: &mut HandleScope, new_data: Local<Array>) {
-        let _ = &self.clear(scope);
-
-        for index in 0..new_data.length() {
-            let item = new_data.get_index(scope, index).unwrap();
-            let _ = &self.set_index(scope, index, item);
-        }
-    }
-
+impl<'a> LocalArrayExtension for Local<'a, Array> {
     fn clear(&self, scope: &mut HandleScope) {
         self.set_length(scope, 0);
     }
