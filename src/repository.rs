@@ -1,18 +1,18 @@
 use std::sync::LazyLock;
 
-use heed::{Database, Env, EnvOpenOptions};
 use heed::types::*;
+use heed::{Database, Env, EnvOpenOptions};
 use serde_json::Value;
 use uuid::Uuid;
 
-pub static REPOSITORY: LazyLock<Repository> = LazyLock::new(|| { Repository::new() });
+pub static REPOSITORY: LazyLock<Repository> = LazyLock::new(|| Repository::new());
 
 const COLLECTION_KEY: &str = "collection";
 const SCRIPT_KEY: &str = "script";
 
 pub struct Repository {
     env: Env,
-    database: Database<Str, Str>
+    database: Database<Str, Str>,
 }
 
 impl Repository {
@@ -30,7 +30,12 @@ impl Repository {
     pub fn get(&self, collection: String, id: String) -> String {
         let mut wtxn = self.env.write_txn().unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
-        let data = self.database.get(&mut wtxn, &key).unwrap().expect("Item not found").to_string();
+        let data = self
+            .database
+            .get(&mut wtxn, &key)
+            .unwrap()
+            .expect("Item not found")
+            .to_string();
         wtxn.commit().unwrap();
         data
     }
@@ -63,7 +68,7 @@ impl Repository {
         let data = serde_json::to_string(&value).unwrap();
         let key = format!("{COLLECTION_KEY}:{collection}:{id}");
         if self.database.get(&mut wtxn, &key).is_ok() {
-            self.database.put(&mut wtxn, &key, &data).unwrap(); 
+            self.database.put(&mut wtxn, &key, &data).unwrap();
         }
         wtxn.commit().unwrap();
     }
@@ -77,7 +82,12 @@ impl Repository {
 
     pub fn script(&self) -> String {
         let mut wtxn = self.env.write_txn().unwrap();
-        let data = self.database.get(&mut wtxn, SCRIPT_KEY).unwrap().expect("Script not found").to_string();
+        let data = self
+            .database
+            .get(&mut wtxn, SCRIPT_KEY)
+            .unwrap()
+            .expect("Script not found")
+            .to_string();
         wtxn.commit().unwrap();
         data
     }

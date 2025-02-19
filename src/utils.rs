@@ -1,26 +1,43 @@
-use v8::{json, Array, Exception, Function, FunctionCallbackArguments, HandleScope, Integer, Local, Object, Value};
 use crate::repository::REPOSITORY;
+use v8::{
+    json, Array, Exception, Function, FunctionCallbackArguments, HandleScope, Integer, Local,
+    Object, Value,
+};
 
-pub fn get_function<'s, 'a>(scope: &mut HandleScope<'s>, object: Local<'a, Object>, name: &str) -> Result<Local<'a, Function>, String> where 's : 'a {
+pub fn get_function<'s, 'a>(
+    scope: &mut HandleScope<'s>,
+    object: Local<'a, Object>,
+    name: &str,
+) -> Result<Local<'a, Function>, String>
+where
+    's: 'a,
+{
     let function_name = v8::String::new(scope, name).unwrap();
 
-    let function = object.get(scope, function_name.into()).map(|value| {
-        if value.is_undefined() {
-            Err(throw(scope, &*format!("could not find function -> {name}")))
-        }
-        else {
-            Ok(value)
-        }
-    }).unwrap();
+    let function = object
+        .get(scope, function_name.into())
+        .map(|value| {
+            if value.is_undefined() {
+                Err(throw(scope, &*format!("could not find function -> {name}")))
+            } else {
+                Ok(value)
+            }
+        })
+        .unwrap();
 
     Ok(function?.try_into().unwrap())
 }
 
-pub fn out_array<'s, 'a>(scope: &mut HandleScope, args: &FunctionCallbackArguments<'a>) -> Result<Local<'a, Array>, String> where 's : 'a {
+pub fn out_array<'s, 'a>(
+    scope: &mut HandleScope,
+    args: &FunctionCallbackArguments<'a>,
+) -> Result<Local<'a, Array>, String>
+where
+    's: 'a,
+{
     if args.this().is_array() {
         Ok(args.this().try_into().unwrap())
-    }
-    else {
+    } else {
         Err(throw(scope, "failed to found a context"))
     }
 }
@@ -32,9 +49,20 @@ pub fn throw(scope: &mut HandleScope, message: &str) -> String {
     message.to_string()
 }
 
-pub fn bind<'s, 'a>(scope: &mut HandleScope<'s>, function: Local<'a, Function>, this: Local<'a, Value>) -> Result<Local<'a, Function>, String> where 's : 'a {
+pub fn bind<'s, 'a>(
+    scope: &mut HandleScope<'s>,
+    function: Local<'a, Function>,
+    this: Local<'a, Value>,
+) -> Result<Local<'a, Function>, String>
+where
+    's: 'a,
+{
     let bind = get_function(scope, function.into(), "bind")?;
-    Ok(bind.call(scope, function.into(), &[this]).unwrap().try_into().unwrap())
+    Ok(bind
+        .call(scope, function.into(), &[this])
+        .unwrap()
+        .try_into()
+        .unwrap())
 }
 
 pub fn array_update(scope: &mut HandleScope, array: Local<Array>, new_data: Local<Array>) {

@@ -1,6 +1,6 @@
 use swc_core::ecma::visit::swc_ecma_ast::{
-    CallExpr, Callee, Expr, ExprOrSpread, FnExpr, Function, Ident, IdentName,
-    MemberExpr, MemberProp, ThisExpr,
+    CallExpr, Callee, Expr, ExprOrSpread, FnExpr, Function, Ident, IdentName, MemberExpr,
+    MemberProp, ThisExpr,
 };
 use swc_core::ecma::visit::{VisitMut, VisitMutWith};
 
@@ -15,7 +15,9 @@ impl VisitMut for QueryEngineTransformer {
                     if ident.sym.starts_with("$") {
                         let mut args = vec![ExprOrSpread {
                             spread: None,
-                            expr: Box::new(Expr::This(ThisExpr { span: call_expr.span })),
+                            expr: Box::new(Expr::This(ThisExpr {
+                                span: call_expr.span,
+                            })),
                         }];
 
                         args.extend(call_expr.args.clone());

@@ -8,20 +8,21 @@ pub struct PathResolve {
 }
 
 impl Resolve for PathResolve {
-    fn resolve(&self, base: &FileName, module_specifier: &str) -> Result<Resolution, anyhow::Error> {
+    fn resolve(
+        &self,
+        base: &FileName,
+        module_specifier: &str,
+    ) -> Result<Resolution, anyhow::Error> {
         let base = match base {
             FileName::Real(v) => v,
             _ => unreachable!(),
         };
 
-        let path = base.parent()
-            .unwrap()
-            .join(module_specifier);
+        let path = base.parent().unwrap().join(module_specifier);
 
         let path = if self.cm.file_exists(path.with_extension("d.ts").as_path()) {
             path.with_extension("d.ts")
-        }
-        else {
+        } else {
             path.with_extension("ts")
         };
 

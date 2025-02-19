@@ -4,6 +4,7 @@ mod stages;
 mod typescript;
 mod utils;
 
+use crate::typescript::ts_transpiler::ts_transpiler;
 use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::MultipartForm;
 use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
@@ -13,7 +14,6 @@ use serde_json::Value;
 use std::{collections::HashMap, sync::mpsc};
 use v8::new_default_platform;
 use v8::V8::{initialize, initialize_platform};
-use crate::typescript::ts_transpiler::ts_transpiler;
 
 #[derive(Debug, MultipartForm)]
 struct UploadScript {
@@ -60,7 +60,9 @@ async fn query(
 ) -> impl Responder {
     let (result, receiver) = mpsc::channel::<String>();
 
-    QUERY_ENGINE.lock().unwrap()
+    QUERY_ENGINE
+        .lock()
+        .unwrap()
         .call
         .send(QueryEngineCall {
             name: path.into_inner(),

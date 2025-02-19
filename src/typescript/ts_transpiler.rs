@@ -1,4 +1,7 @@
+use crate::query_engine::refresh_query_engine;
+use crate::repository::REPOSITORY;
 use crate::typescript::path_resolve::PathResolve;
+use crate::typescript::ts_file_loader::TsFileLoader;
 use crate::typescript::ts_module_load::TsModuleLoad;
 use std::collections::HashMap;
 use std::io::{Read, Seek};
@@ -8,19 +11,22 @@ use swc_core::bundler::{Bundler, Hook, ModuleRecord, ModuleType};
 use swc_core::common::{FileName, FilePathMapping, Span};
 use swc_core::ecma::codegen;
 use swc_core::ecma::visit::swc_ecma_ast::KeyValueProp;
-use swc_core::{bundler, common::{
-    Globals, SourceMap,
-}, ecma::codegen::{text_writer::JsWriter, Emitter}};
-use virtual_filesystem::FileSystem;
+use swc_core::{
+    bundler,
+    common::{Globals, SourceMap},
+    ecma::codegen::{text_writer::JsWriter, Emitter},
+};
 use virtual_filesystem::zip_fs::ZipFS;
-use crate::query_engine::refresh_query_engine;
-use crate::repository::REPOSITORY;
-use crate::typescript::ts_file_loader::TsFileLoader;
+use virtual_filesystem::FileSystem;
 
 struct Noop;
 
 impl Hook for Noop {
-    fn get_import_meta_props(&self, _: Span, _: &ModuleRecord) -> Result<Vec<KeyValueProp>, anyhow::Error> {
+    fn get_import_meta_props(
+        &self,
+        _: Span,
+        _: &ModuleRecord,
+    ) -> Result<Vec<KeyValueProp>, anyhow::Error> {
         unimplemented!()
     }
 }
@@ -42,24 +48,25 @@ pub fn ts_transpiler<R: Read + Seek + Send + 'static>(reader: R, main: String) {
             if path.ends_with(&format!("{}.ts", main).to_string()) {
                 entries.insert(path.to_str().unwrap().to_string(), FileName::Real(path));
                 break;
-            }
-            else {
+            } else {
                 next = dir.path.to_str().unwrap().to_string();
             }
         }
 
         if entries.len() == 1 {
             break;
-        }
-        else {
+        } else {
             root = next.clone();
         }
     }
 
-    let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(Box::new(TsFileLoader::<R>::new(
-        zip_fs,
-        Path::new(&root).to_path_buf()
-    )), FilePathMapping::default()));
+    let cm: Rc<SourceMap> = Rc::new(SourceMap::with_file_loader(
+        Box::new(TsFileLoader::<R>::new(
+            zip_fs,
+            Path::new(&root).to_path_buf(),
+        )),
+        FilePathMapping::default(),
+    ));
 
     let globals = Globals::default();
 

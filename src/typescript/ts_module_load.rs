@@ -29,27 +29,29 @@ impl Load for TsModuleLoad {
             EsVersion::latest(),
             StringInput::from(&*fm),
             None,
-        )).parse_typescript_module()
-            .map_err(|err| {
-                let handler = Handler::with_tty_emitter(ColorConfig::Always, false, false, Some(self.cm.clone()));
-                err.into_diagnostic(&handler).emit();
-            })
-            .map(|module| {
-                let unresolved_mark = Mark::new();
-                let top_level_mark = Mark::new();
+        ))
+        .parse_typescript_module()
+        .map_err(|err| {
+            let handler =
+                Handler::with_tty_emitter(ColorConfig::Always, false, false, Some(self.cm.clone()));
+            err.into_diagnostic(&handler).emit();
+        })
+        .map(|module| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
 
-                let mut module = Program::Module(module)
-                    .apply(resolver(unresolved_mark, top_level_mark, true))
-                    .apply(strip(unresolved_mark, top_level_mark))
-                    .apply(hygiene())
-                    .apply(fixer(None))
-                    .expect_module();
+            let mut module = Program::Module(module)
+                .apply(resolver(unresolved_mark, top_level_mark, true))
+                .apply(strip(unresolved_mark, top_level_mark))
+                .apply(hygiene())
+                .apply(fixer(None))
+                .expect_module();
 
-                module.visit_mut_with(&mut QueryEngineTransformer);
+            module.visit_mut_with(&mut QueryEngineTransformer);
 
-                module
-            })
-            .unwrap();
+            module
+        })
+        .unwrap();
 
         Ok(ModuleData {
             fm,

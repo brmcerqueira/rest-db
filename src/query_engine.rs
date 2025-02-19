@@ -1,22 +1,27 @@
 use std::sync::Mutex;
-use std::{collections::HashMap, sync::{
-    mpsc::{self, Sender},
-    LazyLock,
-}, thread};
-use v8::{json, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope, Integer, Isolate, Local, Number, Object, ObjectTemplate, Script, TryCatch, Value};
-
-use crate::repository::REPOSITORY;
-use crate::{
-    stages::global_functions, utils::get_function,
+use std::{
+    collections::HashMap,
+    sync::{
+        mpsc::{self, Sender},
+        LazyLock,
+    },
+    thread,
+};
+use v8::{
+    json, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope, Integer, Isolate,
+    Local, Number, Object, ObjectTemplate, Script, TryCatch, Value,
 };
 
-pub static QUERY_ENGINE: LazyLock<Mutex<QueryEngine>> = LazyLock::new(|| Mutex::new(QueryEngine::new(REPOSITORY.script())));
+use crate::repository::REPOSITORY;
+use crate::{stages::global_functions, utils::get_function};
+
+pub static QUERY_ENGINE: LazyLock<Mutex<QueryEngine>> =
+    LazyLock::new(|| Mutex::new(QueryEngine::new(REPOSITORY.script())));
 
 pub fn refresh_query_engine(code: String) {
     let mut lock = QUERY_ENGINE.lock().unwrap();
     *lock = QueryEngine::new(code);
 }
-
 
 pub struct QueryEngineCall {
     pub name: String,
@@ -53,41 +58,41 @@ impl QueryEngine {
 
             let context_scope = &mut ContextScope::new(isolate_scope, context);
 
-            let code = v8::String::new(context_scope, &code).unwrap();
+            let try_catch = &mut TryCatch::new(context_scope);
 
-            let global = Script::compile(context_scope, code, None)
+            let code = v8::String::new(try_catch, &code).unwrap();
+
+            let global = Script::compile(try_catch, code, None)
                 .unwrap()
-                .run(context_scope).unwrap().to_object(context_scope).unwrap();
+                .run(try_catch)
+                .unwrap()
+                .to_object(try_catch)
+                .unwrap();
 
             for item in receiver {
-                let args = Object::new(context_scope);
+                let args = Object::new(try_catch);
 
                 for (key, value) in item.args.iter() {
-                    let local_key = v8::String::new(context_scope, key).unwrap();
-                    let local_value = Self::parse(context_scope, value);
-                    args.set(context_scope, local_key.into(), local_value);
+                    let local_key = v8::String::new(try_catch, key).unwrap();
+                    let local_value = Self::parse(try_catch, value);
+                    args.set(try_catch, local_key.into(), local_value);
                 }
 
-                let array = Array::new(context_scope, 0).into();
+                let array = Array::new(try_catch, 0).into();
 
-                let function = get_function(context_scope, global, &item.name);
+                let function = get_function(try_catch, global, &item.name);
 
                 if let Err(err) = function {
                     item.result.send(err.to_string()).unwrap();
-                }
-                else {
-                    let try_catch = &mut TryCatch::new(context_scope);
-
-                    function.unwrap().call(
-                        try_catch,
-                        array,
-                        &[args.into()],
-                    );
+                } else {
+                    function.unwrap().call(try_catch, array, &[args.into()]);
 
                     if try_catch.has_caught() {
                         let exception = try_catch.exception().unwrap();
                         let message = exception.to_string(try_catch).unwrap();
-                        item.result.send(message.to_rust_string_lossy(try_catch)).unwrap();
+                        item.result
+                            .send(message.to_rust_string_lossy(try_catch))
+                            .unwrap();
                     } else {
                         item.result
                             .send(
