@@ -3,6 +3,8 @@ mod repository;
 mod stages;
 mod typescript;
 mod utils;
+mod try_catch_verify;
+mod local_array_extension;
 
 use crate::typescript::ts_transpiler::ts_transpiler;
 use actix_multipart::form::tempfile::TempFile;
