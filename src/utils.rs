@@ -18,7 +18,7 @@ where
         .get(scope, function_name.into())
         .map(|value| {
             if value.is_undefined() {
-                Err(throw(scope, &*format!("could not find function -> {name}")))
+                Err(format!("could not find function -> {name}"))
             } else {
                 Ok(value)
             }
@@ -28,25 +28,23 @@ where
     Ok(function?.try_into().unwrap())
 }
 
-pub fn out_array<'s, 'a>(
-    scope: &mut HandleScope,
-    args: &FunctionCallbackArguments<'a>,
-) -> Result<Local<'a, Array>, String>
-where
-    's: 'a,
-{
+pub fn out_array<'a>(args: &FunctionCallbackArguments<'a>) -> Result<Local<'a, Array>, String> {
     if args.this().is_array() {
         Ok(args.this().try_into().unwrap())
     } else {
-        Err(throw(scope, "failed to found a context"))
+        Err("failed to found a context".to_string())
     }
 }
 
-pub fn throw(scope: &mut HandleScope, message: &str) -> String {
-    let value = v8::String::new(scope, message).unwrap();
-    let exception = Exception::error(scope, value);
-    scope.throw_exception(exception);
-    message.to_string()
+pub fn throw_error(
+    scope: &mut HandleScope,
+    mut block: impl FnMut(&mut HandleScope) -> Result<(), String>,
+) {
+    if let Err(e) = block(scope) {
+        let value = v8::String::new(scope, &*e).unwrap();
+        let exception = Exception::error(scope, value);
+        scope.throw_exception(exception);
+    }
 }
 
 pub fn bind<'s, 'a>(

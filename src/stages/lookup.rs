@@ -3,7 +3,7 @@ use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Loc
 use crate::utils::{collection_load, copy, out_array};
 
 pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
-    let array = out_array(scope, &args).unwrap();
+    let array = out_array(&args).unwrap();
 
     let collection = args
         .get(0)

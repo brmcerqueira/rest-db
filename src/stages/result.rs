@@ -1,4 +1,4 @@
-use crate::utils::out_array;
+use crate::utils::{out_array, throw_error};
 use v8::{FunctionCallbackArguments, HandleScope, ReturnValue};
 
 pub fn result(
@@ -6,5 +6,8 @@ pub fn result(
     args: FunctionCallbackArguments,
     mut return_value: ReturnValue,
 ) {
-    return_value.set(out_array(scope, &args).unwrap().into());
+    throw_error(scope, |_| {
+        return_value.set(out_array(&args)?.into());
+        Ok(())
+    });
 }

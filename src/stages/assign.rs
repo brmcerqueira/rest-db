@@ -3,7 +3,7 @@ use v8::{Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
 use crate::utils::{get_function, out_array};
 
 pub fn assign(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
-    let array = out_array(scope, &args).unwrap();
+    let array = out_array(&args).unwrap();
 
     let function: Local<Function> = args.get(0).try_into().unwrap();
 

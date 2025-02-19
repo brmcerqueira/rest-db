@@ -6,7 +6,7 @@ use v8::{
 use crate::utils::{clear, out_array};
 
 pub fn group(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
-    let array = out_array(scope, &args).unwrap();
+    let array = out_array(&args).unwrap();
 
     let (function, key_function): (Local<Function>, Option<Local<Function>>) = if args.length() == 2
     {

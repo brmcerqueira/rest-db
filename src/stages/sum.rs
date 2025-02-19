@@ -8,7 +8,7 @@ pub fn sum(
     args: FunctionCallbackArguments,
     mut return_value: ReturnValue,
 ) {
-    let array = out_array(scope, &args).unwrap();
+    let array = out_array(&args).unwrap();
 
     let initial_value = Integer::new(scope, 0);
 
