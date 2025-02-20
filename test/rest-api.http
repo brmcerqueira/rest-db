@@ -1,4 +1,4 @@
-GET http://localhost:8080/query/queryUser?text=a
+GET http://localhost:8080/query/queryEmployee?text=a
 Accept: */*
 
 <> 2025-02-15T115445.200.json
@@ -17,7 +17,7 @@ Accept: */*
 
 ###
 
-GET http://localhost:8080/canary/query/queryUser?text=a
+GET http://localhost:8080/canary/query/queryEmployee?text=a
 Accept: */*
 
 

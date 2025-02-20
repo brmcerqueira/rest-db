@@ -19,7 +19,12 @@ pub struct Repository {
 
 impl Repository {
     fn new() -> Self {
-        let env = unsafe { EnvOpenOptions::new().map_size(1024 * 1024 * 1024).open("db") }.unwrap();
+        let env = unsafe {
+            EnvOpenOptions::new()
+                .map_size(1024 * 1024 * 1024)
+                .open("db")
+        }
+        .unwrap();
 
         let mut wtxn = env.write_txn().unwrap();
 
@@ -44,7 +49,7 @@ impl Repository {
 
     pub fn get_all(&self, collection: String, mut each: impl FnMut(String)) {
         let mut wtxn = self.env.write_txn().unwrap();
-        let key = format!("{COLLECTION_KEY}:{collection}");
+        let key = format!("{COLLECTION_KEY}:{collection}:");
 
         for item in self.database.prefix_iter(&mut wtxn, &key).unwrap() {
             each(item.unwrap().1.to_string())
