@@ -9,6 +9,8 @@ pub static REPOSITORY: LazyLock<Repository> = LazyLock::new(|| Repository::new()
 
 const COLLECTION_KEY: &str = "collection";
 const SCRIPT_KEY: &str = "script";
+const CANARY_KEY: &str = "canary";
+const PRODUCTION_KEY: &str = "production";
 
 pub struct Repository {
     env: Env,
@@ -80,21 +82,37 @@ impl Repository {
         wtxn.commit().unwrap();
     }
 
-    pub fn script(&self) -> String {
-        let mut wtxn = self.env.write_txn().unwrap();
-        let data = self
+    pub fn script(&self, canary: bool) -> Result<String, String> {
+        let mut wtxn = self.env.write_txn().map_err(|e| e.to_string())?;
+        let key = format!(
+            "{SCRIPT_KEY}:{}",
+            if canary { CANARY_KEY } else { PRODUCTION_KEY }
+        );
+
+        let result = self
             .database
-            .get(&mut wtxn, SCRIPT_KEY)
-            .unwrap()
-            .expect("Script not found")
-            .to_string();
-        wtxn.commit().unwrap();
-        data
+            .get(&mut wtxn, &key)
+            .map(|value| {
+                if value.is_some() {
+                    Ok(value.unwrap().to_string())
+                } else {
+                    Err("Script not found".to_string())
+                }
+            })
+            .map_err(|e| e.to_string())?;
+
+        wtxn.commit().map_err(|e| e.to_string())?;
+
+        result
     }
 
-    pub fn save_script(&self, code: String) {
+    pub fn save_script(&self, code: String, canary: bool) {
         let mut wtxn = self.env.write_txn().unwrap();
-        self.database.put(&mut wtxn, SCRIPT_KEY, &code).unwrap();
+        let key = format!(
+            "{SCRIPT_KEY}:{}",
+            if canary { CANARY_KEY } else { PRODUCTION_KEY }
+        );
+        self.database.put(&mut wtxn, &key, &code).unwrap();
         wtxn.commit().unwrap();
     }
 }

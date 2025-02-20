@@ -1,5 +1,4 @@
-use crate::query_engine::refresh_query_engine;
-use crate::repository::REPOSITORY;
+use crate::query_engine_manager::QUERY_ENGINE_MANAGER;
 use crate::typescript::path_resolve::PathResolve;
 use crate::typescript::ts_file_loader::TsFileLoader;
 use crate::typescript::ts_module_load::TsModuleLoad;
@@ -104,7 +103,5 @@ pub fn ts_transpiler<R: Read + Seek + Send + 'static>(reader: R, main: String) {
 
     print!("Transpiled: {}", code);
 
-    REPOSITORY.save_script(code.clone());
-
-    refresh_query_engine(code);
+    QUERY_ENGINE_MANAGER.clone().refresh(code);
 }

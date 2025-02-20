@@ -1,21 +1,12 @@
+use std::sync::mpsc;
 use std::sync::mpsc::Sender;
-use std::sync::{mpsc, Mutex};
-use std::{collections::HashMap, sync::LazyLock, thread};
+use std::{collections::HashMap, thread};
 use v8::{
     json, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope, Integer, Isolate,
     Local, Number, Object, ObjectTemplate, Script, TryCatch, Value,
 };
 
-use crate::repository::REPOSITORY;
 use crate::{stages::global_functions, utils::get_function};
-
-pub static QUERY_ENGINE: LazyLock<Mutex<QueryEngine>> =
-    LazyLock::new(|| Mutex::new(QueryEngine::new(REPOSITORY.script())));
-
-pub fn refresh_query_engine(code: String) {
-    let mut lock = QUERY_ENGINE.lock().unwrap();
-    *lock = QueryEngine::new(code);
-}
 
 #[derive(Clone)]
 pub struct QueryEngine {
@@ -29,7 +20,7 @@ struct QueryEngineCall {
 }
 
 impl QueryEngine {
-    fn new(code: String) -> Self {
+    pub fn new(code: String) -> Self {
         print!("Running: {}", code);
 
         let (sender, receiver) = mpsc::channel::<QueryEngineCall>();

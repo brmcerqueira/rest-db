@@ -1,16 +1,17 @@
 mod local_array_extension;
 mod query_engine;
+mod query_engine_manager;
 mod repository;
 mod stages;
 mod try_catch_verify;
 mod typescript;
 mod utils;
 
+use crate::query_engine_manager::QUERY_ENGINE_MANAGER;
 use crate::typescript::ts_transpiler::ts_transpiler;
 use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::MultipartForm;
 use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
-use query_engine::QUERY_ENGINE;
 use repository::REPOSITORY;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -60,11 +61,10 @@ async fn query(
     path: web::Path<String>,
     query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
-    let result = QUERY_ENGINE
-        .lock()
-        .unwrap()
-        .clone()
-        .call(path.into_inner(), query.0);
+    let result = match QUERY_ENGINE_MANAGER.clone().production() {
+        Ok(query_engine) => query_engine.call(path.into_inner(), query.0),
+        Err(e) => Err(e),
+    };
 
     HttpResponse::Ok()
         .content_type("application/json")
