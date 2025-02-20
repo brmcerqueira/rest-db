@@ -1,6 +1,9 @@
 use crate::try_catch_verify::TryCatchVerify;
 use crate::utils::{out_array, try_or_throw};
-use v8::{undefined, DataError, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue, TryCatch};
+use v8::{
+    undefined, DataError, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue,
+    TryCatch,
+};
 
 pub fn sum(
     root_scope: &mut HandleScope,
@@ -30,7 +33,8 @@ pub fn sum(
 
             try_catch.verify()?;
 
-            accumulator += call.ok_or("can't get value from item in sum")?
+            accumulator += call
+                .ok_or("can't get value from item in sum")?
                 .to_number(try_catch)
                 .ok_or("can't convert local number from value in sum")?
                 .number_value(try_catch)

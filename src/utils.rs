@@ -1,6 +1,5 @@
 use v8::{
-    Array, DataError, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object
-    ,
+    Array, DataError, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object,
 };
 
 pub fn get_function<'s, 'a>(
@@ -42,7 +41,6 @@ pub fn try_or_throw(
 ) {
     if let Err(e) = block(scope) {
         let value = v8::String::new(scope, &*e).unwrap();
-        let exception = Exception::error(scope, value);
-        scope.throw_exception(exception);
+        scope.throw_exception(value.into());
     }
 }

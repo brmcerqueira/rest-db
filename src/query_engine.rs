@@ -91,7 +91,10 @@ impl QueryEngine {
                         let exception = try_catch.exception().unwrap();
                         let message = exception.to_string(try_catch).unwrap();
                         item.result
-                            .send(message.to_rust_string_lossy(try_catch))
+                            .send(format!(
+                                "Error -> {}",
+                                message.to_rust_string_lossy(try_catch)
+                            ))
                             .unwrap();
                     } else {
                         item.result
