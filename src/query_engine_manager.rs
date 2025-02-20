@@ -1,55 +1,55 @@
 use crate::query_engine::QueryEngine;
 use crate::repository::REPOSITORY;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, Mutex};
 
-pub static QUERY_ENGINE_MANAGER: LazyLock<QueryEngineManager> =
-    LazyLock::new(|| QueryEngineManager::new());
+static QUERY_ENGINE_PRODUCTION: LazyLock<Mutex<Option<QueryEngine>>> = LazyLock::new(|| {
+    Mutex::new(if let Ok(code) = REPOSITORY.script(false) {
+        Some(QueryEngine::new(code))
+    } else {
+        None
+    })
+});
 
-#[derive(Clone)]
-pub struct QueryEngineManager {
-    query_engine_production: Option<QueryEngine>,
-    query_engine_canary: Option<QueryEngine>,
+static QUERY_ENGINE_CANARY: LazyLock<Mutex<Option<QueryEngine>>> = LazyLock::new(|| {
+    Mutex::new(if let Ok(code) = REPOSITORY.script(true) {
+        Some(QueryEngine::new(code))
+    } else {
+        None
+    })
+});
+
+pub fn refresh(code: String) {
+    let mut mutex = QUERY_ENGINE_CANARY.lock().unwrap();
+    *mutex = Some(QueryEngine::new(code.clone()));
+    REPOSITORY.save_script(code.clone(), true);
+
+    let mut mutex = QUERY_ENGINE_PRODUCTION.lock().unwrap();
+
+    if mutex.is_some() {
+        *mutex = Some(QueryEngine::new(code.clone()));
+        REPOSITORY.save_script(code, false);
+    }
 }
 
-impl QueryEngineManager {
-    fn new() -> Self {
-        QueryEngineManager {
-            query_engine_production: if let Ok(code) = REPOSITORY.script(false) {
-                Some(QueryEngine::new(code.clone()))
-            } else {
-                None
-            },
-            query_engine_canary: if let Ok(code) = REPOSITORY.script(true) {
-                Some(QueryEngine::new(code.clone()))
-            } else {
-                None
-            },
-        }
-    }
+pub fn production() -> Result<QueryEngine, String> {
+    QUERY_ENGINE_PRODUCTION
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("QueryEngineProduction is missing".to_string())
+}
 
-    pub fn refresh(mut self, code: String) {
-        self.query_engine_canary = Some(QueryEngine::new(code.clone()));
-        REPOSITORY.save_script(code.clone(), true);
+pub fn canary() -> Result<QueryEngine, String> {
+    QUERY_ENGINE_CANARY
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("QueryEngineCanary is missing".to_string())
+}
 
-        if self.query_engine_production.is_none() {
-            self.query_engine_production = Some(QueryEngine::new(code.clone()));
-            REPOSITORY.save_script(code, false);
-        }
-    }
-
-    pub fn production(self) -> Result<QueryEngine, String> {
-        self.query_engine_production
-            .ok_or("QueryEngineProduction is missing".to_string())
-    }
-
-    pub fn canary(self) -> Result<QueryEngine, String> {
-        self.query_engine_canary
-            .ok_or("QueryEngineCanary is missing".to_string())
-    }
-
-    pub fn promote(mut self) {
-        if let Some(query_engine) = self.query_engine_canary {
-            self.query_engine_production = Some(query_engine);
-        }
+pub fn promote() {
+    if let Some(query_engine) = QUERY_ENGINE_CANARY.lock().unwrap().take() {
+        let mut mutex = QUERY_ENGINE_PRODUCTION.lock().unwrap();
+        *mutex = Some(query_engine);
     }
 }

@@ -8,7 +8,7 @@ mod typescript;
 mod utils;
 
 use crate::query_engine::QueryEngine;
-use crate::query_engine_manager::QUERY_ENGINE_MANAGER;
+use crate::query_engine_manager::{canary, production, promote};
 use crate::typescript::ts_transpiler::ts_transpiler;
 use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::MultipartForm;
@@ -77,11 +77,7 @@ async fn query_production(
     path: web::Path<String>,
     query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
-    query_call(
-        QUERY_ENGINE_MANAGER.clone().production(),
-        path.into_inner(),
-        query.0,
-    )
+    query_call(production(), path.into_inner(), query.0)
 }
 
 #[get("/canary/query/{name}")]
@@ -89,16 +85,12 @@ async fn canary_query(
     path: web::Path<String>,
     query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
-    query_call(
-        QUERY_ENGINE_MANAGER.clone().canary(),
-        path.into_inner(),
-        query.0,
-    )
+    query_call(canary(), path.into_inner(), query.0)
 }
 
 #[get("/canary/promote")]
-async fn promote() -> impl Responder {
-    QUERY_ENGINE_MANAGER.clone().promote();
+async fn canary_promote() -> impl Responder {
+    promote();
     HttpResponse::Ok()
 }
 
@@ -128,7 +120,7 @@ async fn main() -> std::io::Result<()> {
             .service(collection_delete)
             .service(query_production)
             .service(canary_query)
-            .service(promote)
+            .service(canary_promote)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
