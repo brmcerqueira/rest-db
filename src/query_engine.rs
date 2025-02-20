@@ -10,6 +10,7 @@ use crate::{stages::global_functions, utils::get_function};
 
 #[derive(Clone)]
 pub struct QueryEngine {
+    pub code: String,
     sender: Sender<QueryEngineCall>,
 }
 
@@ -24,6 +25,8 @@ impl QueryEngine {
         print!("Running: {}", code);
 
         let (sender, receiver) = mpsc::channel::<QueryEngineCall>();
+
+        let code_compile = code.clone();
 
         thread::spawn(move || {
             let isolate = &mut Isolate::new(Default::default());
@@ -44,7 +47,7 @@ impl QueryEngine {
 
             let context_scope = &mut ContextScope::new(isolate_scope, context);
 
-            let code = v8::String::new(context_scope, &code).unwrap();
+            let code = v8::String::new(context_scope, &code_compile).unwrap();
 
             let object = Script::compile(context_scope, code, None)
                 .unwrap()
@@ -65,7 +68,7 @@ impl QueryEngine {
             }
         });
 
-        QueryEngine { sender }
+        QueryEngine { code, sender }
     }
 
     fn treat_call(
