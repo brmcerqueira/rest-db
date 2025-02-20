@@ -25,7 +25,7 @@ pub fn refresh(code: String) {
 
     let mut mutex = QUERY_ENGINE_PRODUCTION.lock().unwrap();
 
-    if mutex.is_some() {
+    if mutex.is_none() {
         *mutex = Some(QueryEngine::new(code.clone()));
         REPOSITORY.save_script(code, false);
     }
