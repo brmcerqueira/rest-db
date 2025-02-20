@@ -27,9 +27,9 @@ impl<'a> LocalArrayExtension for Local<'a, Array> {
         });
     }
 
-    fn copy(&self, scope: &mut HandleScope, origin_array: Local<Array>) {
-        for index in 0..origin_array.length() {
-            let value = origin_array.get_index(scope, index).unwrap();
+    fn copy(&self, scope: &mut HandleScope, array: Local<Array>) {
+        for index in 0..array.length() {
+            let value = array.get_index(scope, index).unwrap();
             let _ = &self.set_index(scope, index, value);
         }
     }

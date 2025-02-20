@@ -1,50 +1,74 @@
 use crate::local_array_extension::LocalArrayExtension;
-use crate::utils::out_array;
-use v8::{undefined, Array, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue};
+use crate::try_catch_verify::TryCatchVerify;
+use crate::utils::{out_array, try_or_throw};
+use v8::{
+    undefined, Array, DataError, Function, FunctionCallbackArguments, HandleScope, Local,
+    ReturnValue, TryCatch,
+};
 
-pub fn lookup(scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
-    let array = out_array(&args).unwrap();
+pub fn lookup(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
+    try_or_throw(root_scope, |scope| {
+        let try_catch = &mut TryCatch::new(scope);
 
-    let collection = args
-        .get(0)
-        .to_string(scope)
-        .unwrap()
-        .to_rust_string_lossy(scope);
+        let out = out_array(&args)?;
 
-    let origin_array = Array::new(scope, 0);
+        let collection = args
+            .get(0)
+            .to_string(try_catch)
+            .ok_or("can't create collection name")?
+            .to_rust_string_lossy(try_catch);
 
-    origin_array.collection_load(scope, collection);
+        let lookup_array = Array::new(try_catch, 0);
 
-    let function: Option<Local<Function>> = if args.length() == 3 {
-        Some(args.get(2).try_into().unwrap())
-    } else {
-        None
-    };
+        lookup_array.collection_load(try_catch, collection);
 
-    let recv = undefined(scope);
-
-    for index in 0..array.length() {
-        let lookup_array = Array::new(scope, 0);
-
-        lookup_array.copy(scope, origin_array);
-
-        let item = array.get_index(scope, index).unwrap();
-
-        if let Some(function) = function {
-            function.call(scope, lookup_array.into(), &[item]).unwrap();
-        }
-
-        let destiny = args.get(1);
-
-        if destiny.is_string() {
-            item.to_object(scope)
-                .unwrap()
-                .set(scope, destiny, lookup_array.into());
+        let function: Option<Local<Function>> = if args.length() == 3 {
+            Some(
+                args.get(2)
+                    .try_into()
+                    .map_err(|x: DataError| x.to_string())?,
+            )
         } else {
-            let function: Local<Function> = destiny.try_into().unwrap();
-            function
-                .call(scope, recv.into(), &[item, lookup_array.into()])
-                .unwrap();
+            None
+        };
+
+        let recv = undefined(try_catch);
+
+        for index in 0..out.length() {
+            let array = Array::new(try_catch, 0);
+
+            array.copy(try_catch, lookup_array);
+
+            let item = out
+                .get_index(try_catch, index)
+                .ok_or("can't get item in lookup")?;
+
+            if let Some(function) = function {
+                let call = function.call(try_catch, array.into(), &[item]);
+
+                try_catch.verify()?;
+
+                call.ok_or("can't call scope function in lookup")?;
+            }
+
+            let destiny = args.get(1);
+
+            if destiny.is_string() {
+                item.to_object(try_catch)
+                    .ok_or("can't convert item to object")?
+                    .set(try_catch, destiny, array.into());
+            } else {
+                let function: Local<Function> =
+                    destiny.try_into().map_err(|x: DataError| x.to_string())?;
+
+                let call = function.call(try_catch, recv.into(), &[item, array.into()]);
+
+                try_catch.verify()?;
+
+                call.ok_or("can't call destiny function in lookup")?;
+            }
         }
-    }
+
+        Ok(())
+    });
 }
