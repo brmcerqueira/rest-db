@@ -1,12 +1,6 @@
-use std::sync::Mutex;
-use std::{
-    collections::HashMap,
-    sync::{
-        mpsc::{self, Sender},
-        LazyLock,
-    },
-    thread,
-};
+use std::sync::mpsc::Sender;
+use std::sync::{mpsc, Mutex};
+use std::{collections::HashMap, sync::LazyLock, thread};
 use v8::{
     json, Array, Boolean, Context, ContextOptions, ContextScope, HandleScope, Integer, Isolate,
     Local, Number, Object, ObjectTemplate, Script, TryCatch, Value,
@@ -23,23 +17,24 @@ pub fn refresh_query_engine(code: String) {
     *lock = QueryEngine::new(code);
 }
 
-pub struct QueryEngineCall {
-    pub name: String,
-    pub args: HashMap<String, String>,
-    pub result: Sender<String>,
+#[derive(Clone)]
+pub struct QueryEngine {
+    sender: Sender<QueryEngineCall>,
 }
 
-pub struct QueryEngine {
-    pub call: Sender<QueryEngineCall>,
+struct QueryEngineCall {
+    pub name: String,
+    pub args: HashMap<String, String>,
+    pub result: Sender<Result<String, String>>,
 }
 
 impl QueryEngine {
     fn new(code: String) -> Self {
         print!("Running: {}", code);
 
-        let (call, receiver) = mpsc::channel::<QueryEngineCall>();
+        let (sender, receiver) = mpsc::channel::<QueryEngineCall>();
 
-        thread::spawn(move || -> Result<(), String> {
+        thread::spawn(move || {
             let isolate = &mut Isolate::new(Default::default());
 
             let isolate_scope = &mut HandleScope::new(isolate);
@@ -58,59 +53,69 @@ impl QueryEngine {
 
             let context_scope = &mut ContextScope::new(isolate_scope, context);
 
-            let try_catch = &mut TryCatch::new(context_scope);
+            let code = v8::String::new(context_scope, &code).unwrap();
 
-            let code = v8::String::new(try_catch, &code).unwrap();
-
-            let global = Script::compile(try_catch, code, None)
+            let object = Script::compile(context_scope, code, None)
                 .unwrap()
-                .run(try_catch)
+                .run(context_scope)
                 .unwrap()
-                .to_object(try_catch)
+                .to_object(context_scope)
                 .unwrap();
 
             for item in receiver {
-                let args = Object::new(try_catch);
-
-                for (key, value) in item.args.iter() {
-                    let local_key = v8::String::new(try_catch, key).unwrap();
-                    let local_value = Self::parse(try_catch, value);
-                    args.set(try_catch, local_key.into(), local_value);
-                }
-
-                let array = Array::new(try_catch, 0).into();
-
-                let function = get_function(try_catch, global, &item.name);
-
-                if let Err(err) = function {
-                    item.result.send(err.to_string()).unwrap();
-                } else {
-                    function.unwrap().call(try_catch, array, &[args.into()]);
-
-                    if try_catch.has_caught() {
-                        let exception = try_catch.exception().unwrap();
-                        let message = exception.to_string(try_catch).unwrap();
-                        item.result
-                            .send(format!(
-                                "Error -> {}",
-                                message.to_rust_string_lossy(try_catch)
-                            ))
-                            .unwrap();
-                    } else {
-                        item.result
-                            .send(
-                                json::stringify(try_catch, array)
-                                    .unwrap()
-                                    .to_rust_string_lossy(try_catch),
-                            )
-                            .unwrap();
-                    }
-                }
+                item.result
+                    .send(Self::treat_call(
+                        context_scope,
+                        object,
+                        item.name,
+                        item.args,
+                    ))
+                    .unwrap();
             }
-            Ok(())
         });
 
-        QueryEngine { call }
+        QueryEngine { sender }
+    }
+
+    fn treat_call(
+        context_scope: &mut ContextScope<HandleScope>,
+        object: Local<Object>,
+        name: String,
+        args: HashMap<String, String>,
+    ) -> Result<String, String> {
+        let try_catch = &mut TryCatch::new(context_scope);
+
+        let arguments = Object::new(try_catch);
+
+        for (key, value) in args.iter() {
+            let local_key = v8::String::new(try_catch, key)
+                .ok_or(format!("can't create argument in {name}"))?;
+            let local_value = Self::parse(try_catch, value);
+            arguments.set(try_catch, local_key.into(), local_value);
+        }
+
+        let out = Array::new(try_catch, 0).into();
+
+        let function = get_function(try_catch, object, &name)?;
+
+        function.call(try_catch, out, &[arguments.into()]);
+
+        if try_catch.has_caught() {
+            let exception = try_catch
+                .exception()
+                .ok_or(format!("can't get exception in {name}"))?;
+            let message = exception
+                .to_string(try_catch)
+                .ok_or(format!("can't convert exception to string in {name}"))?;
+            Err(format!(
+                "Error -> {}",
+                message.to_rust_string_lossy(try_catch)
+            ))
+        } else {
+            Ok(json::stringify(try_catch, out)
+                .ok_or(format!("can't stringify out in {name}"))?
+                .to_rust_string_lossy(try_catch))
+        }
     }
 
     fn parse<'s>(scope: &mut HandleScope<'s, ()>, input: &String) -> Local<'s, Value> {
@@ -131,5 +136,15 @@ impl QueryEngine {
         }
 
         v8::String::new(scope, input).unwrap().into()
+    }
+
+    pub fn call(self, name: String, args: HashMap<String, String>) -> Result<String, String> {
+        let (result, receiver) = mpsc::channel::<Result<String, String>>();
+
+        self.sender
+            .send(QueryEngineCall { name, args, result })
+            .map_err(|e| e.to_string())?;
+
+        receiver.recv().map_err(|e| e.to_string())?
     }
 }

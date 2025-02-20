@@ -1,6 +1,4 @@
-use v8::{
-    Array, DataError, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object,
-};
+use v8::{Array, DataError, Function, FunctionCallbackArguments, HandleScope, Local, Object};
 
 pub fn get_function<'s, 'a>(
     scope: &mut HandleScope<'s>,

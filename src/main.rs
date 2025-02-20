@@ -10,10 +10,10 @@ use crate::typescript::ts_transpiler::ts_transpiler;
 use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::MultipartForm;
 use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
-use query_engine::{QueryEngineCall, QUERY_ENGINE};
+use query_engine::QUERY_ENGINE;
 use repository::REPOSITORY;
 use serde_json::Value;
-use std::{collections::HashMap, sync::mpsc};
+use std::collections::HashMap;
 use v8::new_default_platform;
 use v8::V8::{initialize, initialize_platform};
 
@@ -60,22 +60,15 @@ async fn query(
     path: web::Path<String>,
     query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
-    let (result, receiver) = mpsc::channel::<String>();
-
-    QUERY_ENGINE
+    let result = QUERY_ENGINE
         .lock()
         .unwrap()
-        .call
-        .send(QueryEngineCall {
-            name: path.into_inner(),
-            args: query.0,
-            result,
-        })
-        .unwrap();
+        .clone()
+        .call(path.into_inner(), query.0);
 
     HttpResponse::Ok()
         .content_type("application/json")
-        .body(receiver.recv().unwrap())
+        .body(result.unwrap_or_else(|e| e))
 }
 
 #[put("/script/{main}")]
