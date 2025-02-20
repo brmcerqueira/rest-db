@@ -6,7 +6,6 @@ export function queryUser(args: { text: string }) {
     $test()
     $lookup("user", (item, result) => item.test2 = result, (root) => {
         $filter(user => {
-            let a = $result();
             return root.name == user.name;
         });
         $assign(() => {
