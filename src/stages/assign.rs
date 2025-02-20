@@ -28,11 +28,9 @@ pub fn assign(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: 
 
         let assign_function = get_function(try_catch, object, "assign")?;
 
-        let length = out.length();
-
-        for i in 0..length {
+        for index in 0..out.length() {
             let item = out
-                .get_index(try_catch, i)
+                .get_index(try_catch, index)
                 .ok_or("can't get item in assign")?;
 
             let call = function.call(try_catch, out.into(), &[item]);

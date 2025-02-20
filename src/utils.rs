@@ -1,6 +1,6 @@
 use v8::{
-    Array, DataError, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object,
-    Value,
+    Array, DataError, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object
+    ,
 };
 
 pub fn get_function<'s, 'a>(
@@ -45,20 +45,4 @@ pub fn try_or_throw(
         let exception = Exception::error(scope, value);
         scope.throw_exception(exception);
     }
-}
-
-pub fn bind<'s, 'a>(
-    scope: &mut HandleScope<'s>,
-    function: Local<'a, Function>,
-    this: Local<'a, Value>,
-) -> Result<Local<'a, Function>, String>
-where
-    's: 'a,
-{
-    let bind = get_function(scope, function.into(), "bind")?;
-    Ok(bind
-        .call(scope, function.into(), &[this])
-        .unwrap()
-        .try_into()
-        .unwrap())
 }
