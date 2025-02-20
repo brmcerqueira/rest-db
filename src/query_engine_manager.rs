@@ -32,8 +32,8 @@ impl QueryEngineManager {
         REPOSITORY.save_script(code.clone(), true);
 
         if self.query_engine_production.is_none() {
-            self.query_engine_canary = Some(QueryEngine::new(code.clone()));
-            REPOSITORY.save_script(code, true);
+            self.query_engine_production = Some(QueryEngine::new(code.clone()));
+            REPOSITORY.save_script(code, false);
         }
     }
 
@@ -42,8 +42,9 @@ impl QueryEngineManager {
             .ok_or("QueryEngineProduction is missing".to_string())
     }
 
-    pub fn canary(self) -> Option<QueryEngine> {
+    pub fn canary(self) -> Result<QueryEngine, String> {
         self.query_engine_canary
+            .ok_or("QueryEngineCanary is missing".to_string())
     }
 
     pub fn promote(mut self) {

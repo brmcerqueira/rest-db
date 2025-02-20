@@ -17,6 +17,18 @@ Accept: */*
 
 ###
 
+GET http://localhost:8080/canary/query/queryUser?text=1
+Accept: */*
+
+
+###
+
+GET http://localhost:8080/canary/promote
+Accept: */*
+
+
+###
+
 POST http://localhost:8080/collection/user/8e17cefb-5b3c-4cf3-8c0a-e0d2006ff1e8
 Accept: */*
 Content-Type: application/json

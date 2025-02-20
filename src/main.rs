@@ -7,6 +7,7 @@ mod try_catch_verify;
 mod typescript;
 mod utils;
 
+use crate::query_engine::QueryEngine;
 use crate::query_engine_manager::QUERY_ENGINE_MANAGER;
 use crate::typescript::ts_transpiler::ts_transpiler;
 use actix_multipart::form::tempfile::TempFile;
@@ -22,6 +23,21 @@ use v8::V8::{initialize, initialize_platform};
 struct UploadScript {
     #[multipart(limit = "100MB")]
     script: TempFile,
+}
+
+fn query_call(
+    query_engine: Result<QueryEngine, String>,
+    name: String,
+    args: HashMap<String, String>,
+) -> HttpResponse {
+    let result = match query_engine {
+        Ok(engine) => engine.call(name, args),
+        Err(e) => Err(e),
+    };
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(result.unwrap_or_else(|e| e))
 }
 
 #[get("/collection/{name}/{id}")]
@@ -57,18 +73,33 @@ async fn collection_delete(path: web::Path<(String, String)>) -> impl Responder 
 }
 
 #[get("/query/{name}")]
-async fn query(
+async fn query_production(
     path: web::Path<String>,
     query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
-    let result = match QUERY_ENGINE_MANAGER.clone().production() {
-        Ok(query_engine) => query_engine.call(path.into_inner(), query.0),
-        Err(e) => Err(e),
-    };
+    query_call(
+        QUERY_ENGINE_MANAGER.clone().production(),
+        path.into_inner(),
+        query.0,
+    )
+}
 
+#[get("/canary/query/{name}")]
+async fn canary_query(
+    path: web::Path<String>,
+    query: web::Query<HashMap<String, String>>,
+) -> impl Responder {
+    query_call(
+        QUERY_ENGINE_MANAGER.clone().canary(),
+        path.into_inner(),
+        query.0,
+    )
+}
+
+#[get("/canary/promote")]
+async fn promote() -> impl Responder {
+    QUERY_ENGINE_MANAGER.clone().promote();
     HttpResponse::Ok()
-        .content_type("application/json")
-        .body(result.unwrap_or_else(|e| e))
 }
 
 #[put("/script/{main}")]
@@ -95,7 +126,9 @@ async fn main() -> std::io::Result<()> {
             .service(collection_create)
             .service(collection_update)
             .service(collection_delete)
-            .service(query)
+            .service(query_production)
+            .service(canary_query)
+            .service(promote)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
