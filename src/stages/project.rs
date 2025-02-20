@@ -7,6 +7,7 @@ use v8::{
 pub fn project(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
     try_or_throw(root_scope, |scope| {
         let try_catch = &mut TryCatch::new(scope);
+
         let out = out_array(&args)?;
 
         let function: Local<Function> = args

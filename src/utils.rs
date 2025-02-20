@@ -1,5 +1,6 @@
 use v8::{
-    Array, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object, Value,
+    Array, DataError, Exception, Function, FunctionCallbackArguments, HandleScope, Local, Object,
+    Value,
 };
 
 pub fn get_function<'s, 'a>(
@@ -10,20 +11,21 @@ pub fn get_function<'s, 'a>(
 where
     's: 'a,
 {
-    let function_name = v8::String::new(scope, name).unwrap();
+    let function_name =
+        v8::String::new(scope, name).ok_or(format!("can't create string {name}"))?;
 
     let function = object
         .get(scope, function_name.into())
         .map(|value| {
             if value.is_undefined() {
-                Err(format!("could not find function -> {name}"))
+                Err(format!("could not find function {name}"))
             } else {
                 Ok(value)
             }
         })
         .unwrap();
 
-    Ok(function?.try_into().unwrap())
+    Ok(function?.try_into().map_err(|x: DataError| x.to_string())?)
 }
 
 pub fn out_array<'a>(args: &FunctionCallbackArguments<'a>) -> Result<Local<'a, Array>, String> {
