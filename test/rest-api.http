@@ -1,4 +1,4 @@
-GET http://localhost:8080/query/queryUser?text=3
+GET http://localhost:8080/query/queryUser?text=a
 Accept: */*
 
 <> 2025-02-15T115445.200.json
@@ -17,7 +17,7 @@ Accept: */*
 
 ###
 
-GET http://localhost:8080/canary/query/queryUser?text=1
+GET http://localhost:8080/canary/query/queryUser?text=a
 Accept: */*
 
 
@@ -59,16 +59,3 @@ GET http://localhost:8080/collection/user/8e17cefb-5b3c-4cf3-8c0a-e0d2006ff1e8
 Accept: */*
 
 ###
-
-PUT http://localhost:8080/script/main
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-
---WebAppBoundary
-Content-Disposition: form-data; name="script"; filename="test_data.zip"
-
-< ./test_data.zip
---WebAppBoundary--
-
-
-###
-

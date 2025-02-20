@@ -19,7 +19,7 @@ pub struct Repository {
 
 impl Repository {
     fn new() -> Self {
-        let env = unsafe { EnvOpenOptions::new().open("db") }.unwrap();
+        let env = unsafe { EnvOpenOptions::new().map_size(1024 * 1024 * 1024).open("db") }.unwrap();
 
         let mut wtxn = env.write_txn().unwrap();
 

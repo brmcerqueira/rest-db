@@ -1,4 +1,4 @@
 /db
 /target
 Cargo.lock
-/test_data.zip
+/test/queries.zip
