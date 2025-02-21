@@ -3,8 +3,7 @@ use crate::try_catch_verify::TryCatchVerify;
 use crate::utils::{out_array, try_or_throw};
 use std::collections::VecDeque;
 use v8::{
-    undefined, DataError, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue,
-    TryCatch,
+    DataError, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue, TryCatch,
 };
 
 pub fn filter(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
@@ -18,8 +17,6 @@ pub fn filter(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: 
             .try_into()
             .map_err(|x: DataError| x.to_string())?;
 
-        let recv = undefined(try_catch);
-
         let mut queue: VecDeque<u32> = VecDeque::new();
 
         let mut index = 0;
@@ -29,7 +26,7 @@ pub fn filter(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: 
                 .get_index(try_catch, index)
                 .ok_or("can't get item in filter")?;
 
-            let call = function.call(try_catch, recv.into(), &[item]);
+            let call = function.call(try_catch, out.into(), &[item]);
 
             try_catch.verify()?;
 

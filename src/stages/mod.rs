@@ -1,10 +1,11 @@
-mod assign;
+mod all;
 mod collection;
 mod filter;
+mod first;
 mod group;
+mod last;
 mod lookup;
 mod project;
-mod result;
 mod sum;
 
 use v8::{FunctionTemplate, HandleScope, Local, ObjectTemplate};
@@ -27,8 +28,9 @@ global!(
     ["$collection", collection::collection],
     ["$lookup", lookup::lookup],
     ["$project", project::project],
-    ["$assign", assign::assign],
     ["$group", group::group],
-    ["$result", result::result],
+    ["$all", all::all],
+    ["$first", first::first],
+    ["$last", last::last],
     ["$sum", sum::sum]
 );

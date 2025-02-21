@@ -36,15 +36,15 @@ pub fn group(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: R
 
         let mut map: HashMap<Local<Value>, Local<Array>> = HashMap::new();
 
-        let undefined = undefined(try_catch);
-
         if key_function.is_some() {
             let key_function = key_function.unwrap();
+
             for index in 0..out.length() {
                 let item = out
                     .get_index(try_catch, index)
                     .ok_or("can't get item in group")?;
-                let key_call = key_function.call(try_catch, undefined.into(), &[item.into()]);
+
+                let key_call = key_function.call(try_catch, out.into(), &[item.into()]);
 
                 try_catch.verify()?;
 
@@ -58,7 +58,7 @@ pub fn group(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: R
                 }
             }
         } else {
-            map.insert(undefined.into(), out);
+            map.insert(undefined(try_catch).into(), out);
         }
 
         out.clear(try_catch);

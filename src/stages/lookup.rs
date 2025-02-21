@@ -2,8 +2,8 @@ use crate::local_array_extension::LocalArrayExtension;
 use crate::try_catch_verify::TryCatchVerify;
 use crate::utils::{out_array, try_or_throw};
 use v8::{
-    undefined, Array, DataError, Function, FunctionCallbackArguments, HandleScope, Local,
-    ReturnValue, TryCatch,
+    Array, DataError, Function, FunctionCallbackArguments, HandleScope, Local, ReturnValue,
+    TryCatch,
 };
 
 pub fn lookup(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: ReturnValue) {
@@ -32,8 +32,6 @@ pub fn lookup(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: 
             None
         };
 
-        let recv = undefined(try_catch);
-
         for index in 0..out.length() {
             let array = Array::new(try_catch, 0);
 
@@ -61,7 +59,7 @@ pub fn lookup(root_scope: &mut HandleScope, args: FunctionCallbackArguments, _: 
                 let function: Local<Function> =
                     destiny.try_into().map_err(|x: DataError| x.to_string())?;
 
-                let call = function.call(try_catch, recv.into(), &[item, array.into()]);
+                let call = function.call(try_catch, array.into(), &[item]);
 
                 try_catch.verify()?;
 

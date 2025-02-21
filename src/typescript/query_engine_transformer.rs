@@ -1,6 +1,6 @@
 use swc_core::ecma::visit::swc_ecma_ast::{
-    CallExpr, Callee, Expr, ExprOrSpread, FnExpr, Function, Ident, IdentName, MemberExpr,
-    MemberProp, ThisExpr,
+    BlockStmt, CallExpr, Callee, Expr, ExprOrSpread, FnExpr, Function, Ident, IdentName,
+    MemberExpr, MemberProp, ReturnStmt, Stmt, ThisExpr,
 };
 use swc_core::ecma::visit::{VisitMut, VisitMutWith};
 
@@ -45,26 +45,35 @@ impl VisitMut for QueryEngineTransformer {
                 }
             }
             Expr::Arrow(arrow_expr) => {
-                if let Some(body) = arrow_expr.body.clone().block_stmt() {
-                    *expr = *Box::new(Expr::Fn(FnExpr {
-                        ident: None,
-                        function: Box::new(Function {
-                            params: arrow_expr
-                                .params
-                                .iter()
-                                .map(|param| param.clone().into())
-                                .collect(),
-                            decorators: Default::default(),
-                            span: arrow_expr.span,
-                            ctxt: arrow_expr.ctxt,
-                            body: Some(body),
-                            is_async: arrow_expr.is_async,
-                            is_generator: arrow_expr.is_generator,
-                            return_type: arrow_expr.return_type.clone(),
-                            type_params: arrow_expr.type_params.clone(),
-                        }),
-                    }));
-                }
+                *expr = *Box::new(Expr::Fn(FnExpr {
+                    ident: None,
+                    function: Box::new(Function {
+                        params: arrow_expr
+                            .params
+                            .iter()
+                            .map(|param| param.clone().into())
+                            .collect(),
+                        decorators: Default::default(),
+                        span: arrow_expr.span,
+                        ctxt: arrow_expr.ctxt,
+                        body: if arrow_expr.body.is_block_stmt() {
+                            arrow_expr.body.clone().block_stmt()
+                        } else {
+                            Some(BlockStmt {
+                                span: arrow_expr.span,
+                                ctxt: arrow_expr.ctxt,
+                                stmts: vec![Stmt::from(ReturnStmt {
+                                    span: arrow_expr.span,
+                                    arg: arrow_expr.body.clone().expr(),
+                                })],
+                            })
+                        },
+                        is_async: arrow_expr.is_async,
+                        is_generator: arrow_expr.is_generator,
+                        return_type: arrow_expr.return_type.clone(),
+                        type_params: arrow_expr.type_params.clone(),
+                    }),
+                }));
             }
             _ => {}
         }
