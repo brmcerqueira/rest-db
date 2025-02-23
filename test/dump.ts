@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-net
-const DELAY = 10;
+const DELAY = 2;
 
 const parsedData = JSON.parse(await Deno.readTextFile("./json_data.json"));
 
