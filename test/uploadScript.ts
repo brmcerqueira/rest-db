@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-run --allow-net
-import { compress }from "jsr:@fakoua/zip-ts";
+import {compress} from "jsr:@fakoua/zip-ts";
 
 const filePath = "queries.zip";
 
