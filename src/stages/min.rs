@@ -1,7 +1,7 @@
 use crate::utils::out_calculate_operator;
 use v8::{FunctionCallbackArguments, HandleScope, ReturnValue};
 
-pub fn sum(
+pub fn min(
     scope: &mut HandleScope,
     args: FunctionCallbackArguments,
     mut return_value: ReturnValue,
@@ -10,8 +10,8 @@ pub fn sum(
         scope,
         &args,
         |result: &mut f64, value: f64| {
-            if value > *result {
-                *result += value;
+            if value < *result {
+                *result = value;
             }
         },
     ));

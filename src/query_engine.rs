@@ -6,8 +6,8 @@ use v8::{
     Local, Number, Object, ObjectTemplate, Script, TryCatch, Value,
 };
 
-use crate::{stages::global_functions, utils::get_function};
 use crate::query_engine::QueryEngineError::{Generic, NotFound};
+use crate::{stages::global_functions, utils::get_function};
 
 #[derive(Clone)]
 pub struct QueryEngine {
@@ -96,8 +96,8 @@ impl QueryEngine {
 
         let out = Array::new(try_catch, 0).into();
 
-        let function = get_function(try_catch, object, &name)
-            .map_err(|e| (NotFound, e.to_string()))?;
+        let function =
+            get_function(try_catch, object, &name).map_err(|e| (NotFound, e.to_string()))?;
 
         function.call(try_catch, out, &[arguments.into()]);
 
@@ -105,13 +105,14 @@ impl QueryEngine {
             let exception = try_catch
                 .exception()
                 .ok_or((Generic, format!("can't get exception in {name}")))?;
-            let message = exception
-                .to_string(try_catch)
-                .ok_or((Generic, format!("can't convert exception to string in {name}")))?;
-            Err((Generic, format!(
-                "Error -> {}",
-                message.to_rust_string_lossy(try_catch)
-            )))
+            let message = exception.to_string(try_catch).ok_or((
+                Generic,
+                format!("can't convert exception to string in {name}"),
+            ))?;
+            Err((
+                Generic,
+                format!("Error -> {}", message.to_rust_string_lossy(try_catch)),
+            ))
         } else {
             Ok(json::stringify(try_catch, out)
                 .ok_or((Generic, format!("can't stringify out in {name}")))?
@@ -139,7 +140,11 @@ impl QueryEngine {
         v8::String::new(scope, input).unwrap().into()
     }
 
-    pub fn call(self, name: String, args: HashMap<String, String>) -> Result<String, (QueryEngineError, String)> {
+    pub fn call(
+        self,
+        name: String,
+        args: HashMap<String, String>,
+    ) -> Result<String, (QueryEngineError, String)> {
         let (result, receiver) = mpsc::channel::<Result<String, (QueryEngineError, String)>>();
 
         self.sender

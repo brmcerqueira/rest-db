@@ -1,4 +1,7 @@
-use v8::{Array, DataError, Function, FunctionCallbackArguments, HandleScope, Local, Object};
+use crate::try_catch_verify::TryCatchVerify;
+use v8::{
+    Array, DataError, Function, FunctionCallbackArguments, HandleScope, Local, Object, TryCatch,
+};
 
 pub fn get_function<'s, 'a>(
     scope: &mut HandleScope<'s>,
@@ -41,4 +44,46 @@ pub fn try_or_throw(
         let value = v8::String::new(scope, &*e).unwrap();
         scope.throw_exception(value.into());
     }
+}
+
+pub fn out_calculate_operator(
+    root_scope: &mut HandleScope,
+    args: &FunctionCallbackArguments,
+    update: fn(&mut f64, f64),
+) -> f64 {
+    let mut result = 0f64;
+
+    try_or_throw(root_scope, |scope| {
+        let try_catch = &mut TryCatch::new(scope);
+
+        let out = out_array(&args)?;
+
+        let function: Local<Function> = args
+            .get(0)
+            .try_into()
+            .map_err(|x: DataError| x.to_string())?;
+
+        for index in 0..out.length() {
+            let item = out
+                .get_index(try_catch, index)
+                .ok_or("can't get item in calculate")?;
+
+            let call = function.call(try_catch, out.into(), &[item]);
+
+            try_catch.verify()?;
+
+            let value = call
+                .ok_or("can't get value from item in calculate")?
+                .to_number(try_catch)
+                .ok_or("can't convert local number from value in calculate")?
+                .number_value(try_catch)
+                .ok_or("can't convert number from value in calculate")?;
+
+            update(&mut result, value);
+        }
+
+        Ok(())
+    });
+
+    result
 }

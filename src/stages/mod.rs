@@ -1,10 +1,13 @@
 mod all;
 mod collection;
+mod count;
 mod filter;
 mod first;
 mod group;
 mod last;
 mod lookup;
+mod max;
+mod min;
 mod project;
 mod sum;
 
@@ -32,5 +35,8 @@ global!(
     ["$all", all::all],
     ["$first", first::first],
     ["$last", last::last],
+    ["$count", count::count],
+    ["$min", min::min],
+    ["$max", max::max],
     ["$sum", sum::sum]
 );

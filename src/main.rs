@@ -7,6 +7,7 @@ mod try_catch_verify;
 mod typescript;
 mod utils;
 
+use crate::query_engine::QueryEngineError::Generic;
 use crate::query_engine::{QueryEngine, QueryEngineError};
 use crate::query_engine_manager::{canary, production, promote};
 use crate::typescript::ts_transpiler::ts_transpiler;
@@ -18,7 +19,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use v8::new_default_platform;
 use v8::V8::{initialize, initialize_platform};
-use crate::query_engine::QueryEngineError::Generic;
 
 #[derive(Debug, MultipartForm)]
 struct UploadScript {

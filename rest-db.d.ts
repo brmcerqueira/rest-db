@@ -16,4 +16,10 @@ declare function $first<T = any>(): T;
 
 declare function $last<T = any>(): T;
 
-declare function $sum<T = any, TResult = any>(callback: (T) => TResult): TResult;
+declare function $count(): number;
+
+declare function $min<T = any>(callback: (T) => number): number;
+
+declare function $max<T = any>(callback: (T) => number): number;
+
+declare function $sum<T = any>(callback: (T) => number): number;
