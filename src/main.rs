@@ -7,7 +7,7 @@ mod try_catch_verify;
 mod typescript;
 mod utils;
 
-use crate::query_engine::QueryEngine;
+use crate::query_engine::{QueryEngine, QueryEngineError};
 use crate::query_engine_manager::{canary, production, promote};
 use crate::typescript::ts_transpiler::ts_transpiler;
 use actix_multipart::form::tempfile::TempFile;
@@ -18,6 +18,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use v8::new_default_platform;
 use v8::V8::{initialize, initialize_platform};
+use crate::query_engine::QueryEngineError::Generic;
 
 #[derive(Debug, MultipartForm)]
 struct UploadScript {
@@ -32,12 +33,16 @@ fn query_call(
 ) -> HttpResponse {
     let result = match query_engine {
         Ok(engine) => engine.call(name, args),
-        Err(e) => Err(e),
+        Err(e) => Err((Generic, e)),
     };
 
-    HttpResponse::Ok()
-        .content_type("application/json")
-        .body(result.unwrap_or_else(|e| e))
+    match result {
+        Ok(data) => HttpResponse::Ok()
+            .content_type("application/json")
+            .body(data),
+        Err((Generic, e)) => HttpResponse::InternalServerError().body(e),
+        Err((QueryEngineError::NotFound, e)) => HttpResponse::NotFound().body(e),
+    }
 }
 
 #[get("/collection/{name}/{id}")]

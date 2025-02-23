@@ -1,20 +1,24 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-run --allow-net
+import { compress } from "jsr:@fakoua/zip-ts";
+
 const filePath = "queries.zip";
 
-Deno.run({
-    cmd: ["zip", "-r", filePath, "queries"],
-});
+await compress("queries", filePath, { overwrite: true });
 
-const file = await Deno.open(filePath);
+const fileContent = await Deno.readFile(filePath);
+
+const fileBlob = new Blob([fileContent], { type: "application/zip" });
 
 const formData = new FormData();
+formData.append("script", fileBlob, "queries.zip");
 
-formData.append("script", file.readable, "queries.zip");
-
-await fetch("http://localhost:8080/script/main", {
+const response = await fetch("http://localhost:8080/script/main", {
     method: "PUT",
     body: formData,
-    headers: {
-        "Content-Type": "multipart/form-data",
-    },
 });
+
+if (response.ok) {
+    console.log("Successfully uploaded script");
+} else {
+    console.error(`Failed to upload script: ${response.statusText}`);
+}

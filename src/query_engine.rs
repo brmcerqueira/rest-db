@@ -7,6 +7,7 @@ use v8::{
 };
 
 use crate::{stages::global_functions, utils::get_function};
+use crate::query_engine::QueryEngineError::{Generic, NotFound};
 
 #[derive(Clone)]
 pub struct QueryEngine {
@@ -17,7 +18,12 @@ pub struct QueryEngine {
 struct QueryEngineCall {
     pub name: String,
     pub args: HashMap<String, String>,
-    pub result: Sender<Result<String, String>>,
+    pub result: Sender<Result<String, (QueryEngineError, String)>>,
+}
+
+pub enum QueryEngineError {
+    Generic,
+    NotFound,
 }
 
 impl QueryEngine {
@@ -76,38 +82,39 @@ impl QueryEngine {
         object: Local<Object>,
         name: String,
         args: HashMap<String, String>,
-    ) -> Result<String, String> {
+    ) -> Result<String, (QueryEngineError, String)> {
         let try_catch = &mut TryCatch::new(context_scope);
 
         let arguments = Object::new(try_catch);
 
         for (key, value) in args.iter() {
             let local_key = v8::String::new(try_catch, key)
-                .ok_or(format!("can't create argument in {name}"))?;
+                .ok_or((Generic, format!("can't create argument in {name}")))?;
             let local_value = Self::parse(try_catch, value);
             arguments.set(try_catch, local_key.into(), local_value);
         }
 
         let out = Array::new(try_catch, 0).into();
 
-        let function = get_function(try_catch, object, &name)?;
+        let function = get_function(try_catch, object, &name)
+            .map_err(|e| (NotFound, e.to_string()))?;
 
         function.call(try_catch, out, &[arguments.into()]);
 
         if try_catch.has_caught() {
             let exception = try_catch
                 .exception()
-                .ok_or(format!("can't get exception in {name}"))?;
+                .ok_or((Generic, format!("can't get exception in {name}")))?;
             let message = exception
                 .to_string(try_catch)
-                .ok_or(format!("can't convert exception to string in {name}"))?;
-            Err(format!(
+                .ok_or((Generic, format!("can't convert exception to string in {name}")))?;
+            Err((Generic, format!(
                 "Error -> {}",
                 message.to_rust_string_lossy(try_catch)
-            ))
+            )))
         } else {
             Ok(json::stringify(try_catch, out)
-                .ok_or(format!("can't stringify out in {name}"))?
+                .ok_or((Generic, format!("can't stringify out in {name}")))?
                 .to_rust_string_lossy(try_catch))
         }
     }
@@ -132,13 +139,13 @@ impl QueryEngine {
         v8::String::new(scope, input).unwrap().into()
     }
 
-    pub fn call(self, name: String, args: HashMap<String, String>) -> Result<String, String> {
-        let (result, receiver) = mpsc::channel::<Result<String, String>>();
+    pub fn call(self, name: String, args: HashMap<String, String>) -> Result<String, (QueryEngineError, String)> {
+        let (result, receiver) = mpsc::channel::<Result<String, (QueryEngineError, String)>>();
 
         self.sender
             .send(QueryEngineCall { name, args, result })
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| (Generic, e.to_string()))?;
 
-        receiver.recv().map_err(|e| e.to_string())?
+        receiver.recv().map_err(|e| (Generic, e.to_string()))?
     }
 }
