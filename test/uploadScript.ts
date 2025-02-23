@@ -1,9 +1,9 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-run --allow-net
-import {compress} from "jsr:@fakoua/zip-ts";
-
 const filePath = "queries.zip";
 
-await compress("queries", filePath, {overwrite: true})
+Deno.run({
+    cmd: ["zip", "-r", filePath, "queries"],
+});
 
 const file = await Deno.open(filePath);
 
